@@ -19,15 +19,15 @@ interface OpticalChartProps {
 const chartConfig = {
   reflectance: {
     label: "Reflectance (R)",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(var(--chart-1))", // Red
   },
   transmittance: {
     label: "Transmittance (T)",
-    color: "hsl(var(--chart-2))",
+    color: "hsl(var(--chart-2))", // Green
   },
   absorptance: {
     label: "Absorptance (A)",
-    color: "hsl(var(--chart-3))",
+    color: "hsl(var(--chart-3))", // Blue
   },
   wavelength: {
     label: "Wavelength (nm)",
@@ -63,10 +63,10 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               accessibilityLayer
               data={data}
               margin={{
-                top: 35, // Increased top margin for legend spacing
+                top: 35, 
                 right: 30,
                 left: 20,
-                bottom: 20,
+                bottom: 35, // Increased bottom margin
               }}
             >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -79,11 +79,11 @@ export default function OpticalChart({ data }: OpticalChartProps) {
                 axisLine={true}
                 tickMargin={8}
                 domain={['dataMin', 'dataMax']}
-                label={{ value: chartConfig.wavelength.label, position: 'insideBottom', offset: -15 }}
+                label={{ value: chartConfig.wavelength.label, position: 'insideBottom', offset: -20 }} // Adjusted offset for label
               />
               <YAxis
                 type="number"
-                name="Spectrum" // Changed from Intensity
+                name="Spectrum" 
                 tickLine={false}
                 axisLine={true}
                 tickMargin={8}
@@ -93,13 +93,24 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               />
               <ChartTooltip
                 cursor={true}
-                content={<ChartTooltipContent indicator="line" nameKey="name" labelKey="wavelength" />}
+                content={
+                  <ChartTooltipContent 
+                    indicator="line" 
+                    nameKey="name" 
+                    labelFormatter={(_label, payload) => {
+                      if (payload && payload.length > 0 && payload[0].payload) {
+                        return `Wavelength: ${payload[0].payload.wavelength.toFixed(2)} nm`;
+                      }
+                      return "";
+                    }}
+                  />
+                }
               />
               <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
               <Line
                 dataKey="reflectance"
                 type="natural"
-                stroke="red"
+                stroke="red" 
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.reflectance.label}
@@ -127,4 +138,3 @@ export default function OpticalChart({ data }: OpticalChartProps) {
     </Card>
   );
 }
-
