@@ -45,7 +45,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
-    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 10) {
+    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) { // Changed from 10 to 20
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
       if (refractiveIndexFields.length > 0) setValue("refractiveIndex", [], { shouldValidate: true, shouldDirty: true });
       return;
@@ -187,7 +187,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
 
             <Separator />
             <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={16}/>Stack & Common Optical Properties</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Changed to 2 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
               <FormField
                 control={control}
                 name="numLayers"
@@ -322,7 +322,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             )}
 
 
-            {numLayers > 0 && !isNaN(numLayers) && numLayers <= 10 && (
+            {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && ( // Changed from 10 to 20
               <>
                 <Separator className="my-6" />
                 <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>

@@ -18,7 +18,7 @@ export const SolverFormSchema = z.object({
   sweepType: z.enum(['wavelength', 'angle']).default('wavelength').describe("Parameter to sweep in the calculation."),
   incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the incident medium"),
   substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the substrate medium"),
-  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(10, "Max 10 layers for demo"),
+  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers for demo"), // Changed from 10 to 20
   thickness: z.array(z.coerce.number().min(0, "Thickness must be non-negative nm. Use 0 for no layer, or >0 for actual thickness.")).describe("Layer thicknesses in nm"),
   refractiveIndex: z.array(ComplexRefractiveIndexSchema).describe("Layer complex refractive indices"),
   
@@ -93,9 +93,9 @@ export const defaultSolverFormValues: SolverFormValues = {
   sweepType: 'wavelength',
   incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 },
   substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 },
-  numLayers: 1, // Default to 1 layer
+  numLayers: 1, 
   thickness: [100], 
-  refractiveIndex: [{ n: 1.0, k: 0.0 }], // Default RI for the 1 layer
+  refractiveIndex: [{ n: 1.0, k: 0.0 }],
   
   minWavelength: 400,
   maxWavelength: 700,
