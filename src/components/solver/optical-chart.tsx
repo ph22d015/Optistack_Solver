@@ -56,73 +56,76 @@ export default function OpticalChart({ data, chartId = "optical-response-chart-c
         <CardDescription>Reflectance, Transmittance, and Absorptance vs. Wavelength</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* This div is what html2canvas will target. Added bg-card and padding for better image quality. */}
-        <div id={chartId} className="bg-card p-4 rounded-md"> 
-          <ChartContainer config={chartConfig} className="min-h-[400px] w-full aspect-video"> {/* Removed explicit bg-background here, parent has bg-card */}
-            <LineChart
-              accessibilityLayer
-              data={data}
-              margin={{
-                top: 20, 
-                right: 30, 
-                left: 20,  
-                bottom: 20, 
-              }}
-            >
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="wavelength"
-                type="number"
-                name={chartConfig.wavelength.label}
-                unit="nm"
-                tickLine={false}
-                axisLine={true}
-                tickMargin={8}
-                domain={['dataMin', 'dataMax']}
-                label={{ value: chartConfig.wavelength.label, position: 'insideBottom', offset: -15 }}
-              />
-              <YAxis
-                type="number"
-                name="Intensity" 
-                tickLine={false}
-                axisLine={true}
-                tickMargin={8}
-                domain={[0, 1]}
-                tickFormatter={(value) => value.toFixed(1)}
-                label={{ value: 'Intensity (R, T, A)', angle: -90, position: 'insideLeft', offset: -10 }}
-              />
-              <ChartTooltip
-                cursor={true}
-                content={<ChartTooltipContent indicator="line" nameKey="name" labelKey="wavelength" />} 
-              />
-              <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
-              <Line
-                dataKey="reflectance"
-                type="natural"
-                stroke="var(--color-reflectance)"
-                strokeWidth={2}
-                dot={false}
-                name={chartConfig.reflectance.label}
-              />
-              <Line
-                dataKey="transmittance"
-                type="natural"
-                stroke="var(--color-transmittance)"
-                strokeWidth={2}
-                dot={false}
-                name={chartConfig.transmittance.label}
-              />
-              <Line
-                dataKey="absorptance"
-                type="natural"
-                stroke="var(--color-absorptance)"
-                strokeWidth={2}
-                dot={false}
-                name={chartConfig.absorptance.label}
-              />
-            </LineChart>
-          </ChartContainer>
-        </div>
+        {/* Apply ID and styling for html2canvas directly to ChartContainer */}
+        <ChartContainer
+          id={chartId} // ID for html2canvas to target
+          config={chartConfig}
+          // Added bg-card, p-4, rounded-md for better image quality for download and consistent display
+          className="min-h-[400px] w-full aspect-video bg-card p-4 rounded-md" 
+        >
+          <LineChart
+            accessibilityLayer
+            data={data}
+            margin={{
+              top: 20, 
+              right: 30, 
+              left: 20,  
+              bottom: 20, 
+            }}
+          >
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis
+              dataKey="wavelength"
+              type="number"
+              name={chartConfig.wavelength.label}
+              unit="nm"
+              tickLine={false}
+              axisLine={true}
+              tickMargin={8}
+              domain={['dataMin', 'dataMax']}
+              label={{ value: chartConfig.wavelength.label, position: 'insideBottom', offset: -15 }}
+            />
+            <YAxis
+              type="number"
+              name="Intensity" 
+              tickLine={false}
+              axisLine={true}
+              tickMargin={8}
+              domain={[0, 1]}
+              tickFormatter={(value) => value.toFixed(1)}
+              label={{ value: 'Intensity (R, T, A)', angle: -90, position: 'insideLeft', offset: -10 }}
+            />
+            <ChartTooltip
+              cursor={true}
+              content={<ChartTooltipContent indicator="line" nameKey="name" labelKey="wavelength" />} 
+            />
+            <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
+            <Line
+              dataKey="reflectance"
+              type="natural"
+              stroke="var(--color-reflectance)"
+              strokeWidth={2}
+              dot={false}
+              name={chartConfig.reflectance.label}
+            />
+            <Line
+              dataKey="transmittance"
+              type="natural"
+              stroke="var(--color-transmittance)"
+              strokeWidth={2}
+              dot={false}
+              name={chartConfig.transmittance.label}
+            />
+            <Line
+              dataKey="absorptance"
+              type="natural"
+              stroke="var(--color-absorptance)"
+              strokeWidth={2}
+              dot={false}
+              name={chartConfig.absorptance.label}
+            />
+          </LineChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );
