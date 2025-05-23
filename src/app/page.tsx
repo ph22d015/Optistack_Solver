@@ -17,43 +17,16 @@ export default function HomePage() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const handleValidate = async (data: SolverFormValues): Promise<AiFeedback | null> => {
-    try {
-      // Map SolverFormValues to the structure expected by performAiValidation
-      const aiValidationInput = {
-        incidentMediumRefractiveIndex: data.incidentMediumRefractiveIndex,
-        substrateMediumRefractiveIndex: data.substrateMediumRefractiveIndex,
-        numLayers: data.numLayers,
-        thickness: data.thickness.map(t => Number(t)),
-        refractiveIndex: data.refractiveIndex.map(ri => ({
-          n: Number(ri.n),
-          k: Number(ri.k),
-        })),
-        angleOfIncidence: Number(data.angleOfIncidence),
-        polarization: data.polarization,
-        minWavelength: Number(data.minWavelength),
-        maxWavelength: Number(data.maxWavelength),
-      };
-      const feedback = await performAiValidation(aiValidationInput);
-      return feedback;
-    } catch (error) {
-      console.error("Validation error:", error);
-      toast({
-        title: "AI Validation Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
+  // handleValidate function is removed as it's no longer used by InputForm directly
+  // The AI validation will be done only in handleSubmit
 
   const handleSubmit = async (data: SolverFormValues) => {
     setIsLoading(true);
-    setResults(null); 
-    
+    setResults(null);
+
     startTransition(async () => {
       try {
-        // Prepare data for AI validation
+        // Prepare data for AI validation (already correctly structured in 'data')
         const aiValidationInput = {
             incidentMediumRefractiveIndex: data.incidentMediumRefractiveIndex,
             substrateMediumRefractiveIndex: data.substrateMediumRefractiveIndex,
@@ -70,7 +43,6 @@ export default function HomePage() {
         };
         const aiFeedback = await performAiValidation(aiValidationInput);
 
-        // Pass the full 'data' object which now includes all necessary fields
         const opticalData = await calculateOpticalResponse(data);
         setResults({ data: opticalData, aiFeedback });
 
@@ -105,9 +77,9 @@ export default function HomePage() {
           </p>
         </div>
          <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl mb-12">
-            <Image 
-                src="https://placehold.co/1200x600.png" 
-                alt="Optical layers abstract representation" 
+            <Image
+                src="https://placehold.co/1200x600.png"
+                alt="Optical layers abstract representation"
                 layout="fill"
                 objectFit="cover"
                 data-ai-hint="optics lightwave"
@@ -120,9 +92,9 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
         <div className="lg:col-span-2">
-          <InputForm 
-            onSubmit={handleSubmit} 
-            onValidate={handleValidate} 
+          <InputForm
+            onSubmit={handleSubmit}
+            // onValidate prop removed
             isLoading={isLoading || isPending}
           />
         </div>

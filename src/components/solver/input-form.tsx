@@ -12,23 +12,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, AlertCircle, ScanLine, Baseline, ArrowDownUp, BoxSelect } from 'lucide-react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect } from 'lucide-react';
 import React, { useEffect } from 'react';
-import type { AiFeedback } from '@/types/solver';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+// Removed Alert related imports as AI feedback is no longer shown directly here
 
 interface InputFormProps {
   onSubmit: (data: SolverFormValues) => void;
-  onValidate: (data: SolverFormValues) => Promise<AiFeedback | null>;
+  // onValidate is removed as AI validation is now handled post-submission
   isLoading: boolean;
-  initialAiFeedback?: AiFeedback;
+  // initialAiFeedback is removed
 }
 
-export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFeedback }: InputFormProps) {
+export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur', 
+    mode: 'onBlur',
   });
 
   const { control, watch, setValue, getValues, handleSubmit, formState: { errors, isSubmitting } } = form;
@@ -45,17 +44,17 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
     name: 'refractiveIndex',
   });
 
-  const [aiFeedback, setAiFeedback] = React.useState<AiFeedback | null>(initialAiFeedback || null);
+  // Removed local aiFeedback state
 
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
-    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 10) { 
+    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 10) {
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
       if (refractiveIndexFields.length > 0) setValue("refractiveIndex", [], { shouldValidate: true, shouldDirty: true });
       return;
     }
-  
+
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
@@ -66,12 +65,12 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
         removeThickness(i);
       }
     }
-  
+
     const currentRefractiveIndexLength = refractiveIndexFields.length;
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
         appendRefractiveIndex(
-          getValues(`refractiveIndex.${i}`) ?? { n: 1.5, k: 0 }, 
+          getValues(`refractiveIndex.${i}`) ?? { n: 1.5, k: 0 },
           { shouldFocus: false }
         );
       }
@@ -81,16 +80,10 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
       }
     }
   }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, getValues, setValue]);
-  
+
 
   const handleFormSubmit = async (data: SolverFormValues) => {
-    setAiFeedback(null); 
-    const validationFeedback = await onValidate(data);
-    setAiFeedback(validationFeedback);
-
-    if (validationFeedback && (validationFeedback.warnings.length > 0)) {
-      console.log("AI validation has warnings.");
-    }
+    // AI validation is now handled by the parent page component after this onSubmit call
     onSubmit(data);
   };
 
@@ -104,7 +97,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
       <CardContent>
         <Form {...form}>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-            
+
             <h3 className="text-lg font-medium flex items-center gap-2"><ArrowDownUp size={20}/>Surrounding Media</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md shadow-sm bg-card/50">
                 <div>
@@ -222,7 +215,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
                 )}
               />
             </div>
-            
+
             <Separator />
             <h3 className="text-lg font-medium flex items-center gap-2"><ScanLine size={20}/>Wavelength Range</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -269,7 +262,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
                         <FormItem>
                           <FormLabel className="flex items-center gap-1"><Ruler size={16} />Thickness (nm)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field} 
+                            <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
                             onChange={e => field.onChange(parseFloat(e.target.value))}
                             />
                           </FormControl>
@@ -285,7 +278,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
                             <FormItem>
                             <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
                             <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.5" {...field} 
+                                <Input type="number" step="0.01" placeholder="e.g., 1.5" {...field}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
                                 />
                             </FormControl>
@@ -300,7 +293,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
                             <FormItem>
                             <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
                             <FormControl>
-                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} 
+                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
                                 />
                             </FormControl>
@@ -313,17 +306,8 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
                 ))}
               </>
             )}
-            
-            {aiFeedback && (aiFeedback.warnings.length > 0 || aiFeedback.suggestions.length > 0) && (
-              <Alert variant={aiFeedback.warnings.length > 0 ? "destructive" : "default"} className="mt-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>{aiFeedback.warnings.length > 0 ? "AI Validation Warnings" : "AI Suggestions"}</AlertTitle>
-                <AlertDescription>
-                  {aiFeedback.warnings.map((warning, i) => <p key={`warn-${i}`}>{warning}</p>)}
-                  {aiFeedback.suggestions.map((suggestion, i) => <p key={`sugg-${i}`}>{suggestion}</p>)}
-                </AlertDescription>
-              </Alert>
-            )}
+
+            {/* AI Feedback Alert removed from here */}
 
             <Button type="submit" disabled={isLoading || isSubmitting} className="w-full md:w-auto mt-6">
               <Calculator size={18} className="mr-2" />
