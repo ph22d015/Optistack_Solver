@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useTransition } from 'react';
@@ -18,14 +19,20 @@ export default function HomePage() {
 
   const handleValidate = async (data: SolverFormValues): Promise<AiFeedback | null> => {
     try {
-      const aiInput = {
+      // Map SolverFormValues to the structure expected by performAiValidation
+      const aiValidationInput = {
         numLayers: data.numLayers,
         thickness: data.thickness.map(t => Number(t)),
-        refractiveIndex: data.refractiveIndex.map(ri => Number(ri)),
+        refractiveIndex: data.refractiveIndex.map(ri => ({
+          n: Number(ri.n),
+          k: Number(ri.k),
+        })),
         angleOfIncidence: Number(data.angleOfIncidence),
         polarization: data.polarization,
+        minWavelength: Number(data.minWavelength),
+        maxWavelength: Number(data.maxWavelength),
       };
-      const feedback = await performAiValidation(aiInput);
+      const feedback = await performAiValidation(aiValidationInput);
       return feedback;
     } catch (error) {
       console.error("Validation error:", error);
@@ -40,25 +47,25 @@ export default function HomePage() {
 
   const handleSubmit = async (data: SolverFormValues) => {
     setIsLoading(true);
-    setResults(null); // Clear previous results
+    setResults(null); 
     
     startTransition(async () => {
       try {
-        // AI Validation is now part of the InputForm's submit flow,
-        // but we can still get the latest feedback if needed or re-validate.
-        // For this flow, we'll assume InputForm has handled displaying initial AI feedback.
-        // The feedback from onValidate in InputForm is used there.
-        // Here we call it again to ensure we have it for the results display if necessary,
-        // or we could pass it up from InputForm.
-        const aiInput = {
+        const aiValidationInput = {
             numLayers: data.numLayers,
             thickness: data.thickness.map(t => Number(t)),
-            refractiveIndex: data.refractiveIndex.map(ri => Number(ri)),
+            refractiveIndex: data.refractiveIndex.map(ri => ({
+                n: Number(ri.n),
+                k: Number(ri.k)
+            })),
             angleOfIncidence: Number(data.angleOfIncidence),
             polarization: data.polarization,
+            minWavelength: Number(data.minWavelength),
+            maxWavelength: Number(data.maxWavelength),
         };
-        const aiFeedback = await performAiValidation(aiInput);
+        const aiFeedback = await performAiValidation(aiValidationInput);
 
+        // Pass the full 'data' object which now includes wavelength range
         const opticalData = await calculateOpticalResponse(data);
         setResults({ data: opticalData, aiFeedback });
 
@@ -98,7 +105,7 @@ export default function HomePage() {
                 alt="Optical layers abstract representation" 
                 layout="fill"
                 objectFit="cover"
-                data-ai-hint="optics light"
+                data-ai-hint="optics lightwave"
                 priority
             />
         </div>

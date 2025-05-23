@@ -8,25 +8,40 @@ export async function calculateOpticalResponse(
     setTimeout(() => {
       const data: OpticalResponsePoint[] = [];
       const numPoints = 100; // Number of wavelength points
-      const minWavelength = 400; // nm
-      const maxWavelength = 700; // nm
+      const minWavelength = params.minWavelength;
+      const maxWavelength = params.maxWavelength;
+
+      if (minWavelength >= maxWavelength) {
+        // Basic validation, though schema should catch this
+        resolve([]);
+        return;
+      }
+      
+      // Example usage of complex refractive index (sum of k values for a mock effect)
+      const totalK = params.refractiveIndex.reduce((sum, ri) => sum + ri.k, 0);
 
       for (let i = 0; i < numPoints; i++) {
         const wavelength = minWavelength + (i * (maxWavelength - minWavelength)) / (numPoints - 1);
         
-        // Simple mock data based on number of layers and angle
+        // Simple mock data based on number of layers, angle, and totalK
         // This is NOT a real optical calculation
-        const baseReflectance = 0.1 + (params.numLayers * 0.05) + (params.angleOfIncidence / 900);
-        const reflectance = baseReflectance + 0.05 * Math.sin((wavelength - minWavelength) / 50 + params.numLayers) * Math.cos(params.angleOfIncidence / 10);
-        const clampedReflectance = Math.max(0, Math.min(1, reflectance));
+        const baseReflectance = 0.05 + (params.numLayers * 0.03) + (params.angleOfIncidence / 1000) + (totalK * 0.1);
         
-        const transmittance = 0.9 - baseReflectance - 0.05 * Math.cos((wavelength - minWavelength) / 40 + params.numLayers) * Math.sin(params.angleOfIncidence / 15);
-        const clampedTransmittance = Math.max(0, Math.min(1 - clampedReflectance, transmittance));
+        const reflectanceVariation = 0.05 * Math.sin((wavelength - minWavelength) / ((maxWavelength - minWavelength)/10) + params.numLayers) * Math.cos(params.angleOfIncidence / 20);
+        let reflectance = baseReflectance + reflectanceVariation;
+        reflectance = Math.max(0, Math.min(1, reflectance)); // Clamp 0-1
+        
+        const transmittanceVariation = 0.05 * Math.cos((wavelength - minWavelength) / ((maxWavelength - minWavelength)/8) + params.numLayers) * Math.sin(params.angleOfIncidence / 25);
+        let transmittance = 0.9 - baseReflectance - transmittanceVariation - (totalK * 0.2); // k reduces transmittance
+        transmittance = Math.max(0, Math.min(1 - reflectance, transmittance)); // Clamp 0-(1-R)
+        
+        const absorptance = Math.max(0, 1 - reflectance - transmittance); // A = 1 - R - T, ensure non-negative
 
         data.push({
           wavelength,
-          reflectance: clampedReflectance,
-          transmittance: clampedTransmittance,
+          reflectance,
+          transmittance,
+          absorptance,
         });
       }
       resolve(data);

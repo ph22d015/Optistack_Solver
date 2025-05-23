@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { OpticalResponsePoint } from '@/types/solver';
@@ -9,7 +10,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis, Legend } from "recharts";
 
 interface OpticalChartProps {
   data: OpticalResponsePoint[];
@@ -17,19 +18,26 @@ interface OpticalChartProps {
 
 const chartConfig = {
   reflectance: {
-    label: "Reflectance",
+    label: "Reflectance (R)",
     color: "hsl(var(--chart-1))",
   },
   transmittance: {
-    label: "Transmittance",
+    label: "Transmittance (T)",
     color: "hsl(var(--chart-2))",
   },
+  absorptance: {
+    label: "Absorptance (A)",
+    color: "hsl(var(--chart-3))", // Using chart-3 for absorptance
+  },
+  wavelength: {
+    label: "Wavelength (nm)",
+  }
 };
 
 export default function OpticalChart({ data }: OpticalChartProps) {
   if (!data || data.length === 0) {
     return (
-      <Card>
+      <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Optical Response</CardTitle>
         </CardHeader>
@@ -41,54 +49,58 @@ export default function OpticalChart({ data }: OpticalChartProps) {
   }
 
   return (
-    <Card>
+    <Card className="shadow-md">
       <CardHeader>
         <CardTitle>Optical Response</CardTitle>
-        <CardDescription>Reflectance and Transmittance vs. Wavelength</CardDescription>
+        <CardDescription>Reflectance, Transmittance, and Absorptance vs. Wavelength</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
+        <ChartContainer config={chartConfig} className="min-h-[400px] w-full aspect-video">
           <LineChart
             accessibilityLayer
             data={data}
             margin={{
-              top: 5,
-              right: 20,
-              left: 0,
-              bottom: 5,
+              top: 20, // Increased top margin for legend if placed above
+              right: 30, // Increased right margin for labels
+              left: 20,  // Increased left margin for Y-axis labels
+              bottom: 20, // Increased bottom margin for X-axis labels and legend
             }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
               dataKey="wavelength"
               type="number"
-              name="Wavelength"
+              name={chartConfig.wavelength.label}
               unit="nm"
               tickLine={false}
-              axisLine={false}
+              axisLine={true}
               tickMargin={8}
               domain={['dataMin', 'dataMax']}
+              label={{ value: chartConfig.wavelength.label, position: 'insideBottom', offset: -15 }}
             />
             <YAxis
+              type="number"
               name="Intensity"
               tickLine={false}
-              axisLine={false}
+              axisLine={true}
               tickMargin={8}
               domain={[0, 1]}
               tickFormatter={(value) => value.toFixed(1)}
+              label={{ value: 'Intensity (R, T, A)', angle: -90, position: 'insideLeft', offset: -10 }}
             />
             <ChartTooltip
               cursor={true}
               content={<ChartTooltipContent indicator="line" />}
             />
-            <ChartLegend content={<ChartLegendContent />} />
+            <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
             <Line
               dataKey="reflectance"
               type="natural"
               stroke="var(--color-reflectance)"
               strokeWidth={2}
               dot={false}
-              name="Reflectance"
+              name={chartConfig.reflectance.label}
+              
             />
             <Line
               dataKey="transmittance"
@@ -96,7 +108,15 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               stroke="var(--color-transmittance)"
               strokeWidth={2}
               dot={false}
-              name="Transmittance"
+              name={chartConfig.transmittance.label}
+            />
+            <Line
+              dataKey="absorptance"
+              type="natural"
+              stroke="var(--color-absorptance)"
+              strokeWidth={2}
+              dot={false}
+              name={chartConfig.absorptance.label}
             />
           </LineChart>
         </ChartContainer>
@@ -104,3 +124,4 @@ export default function OpticalChart({ data }: OpticalChartProps) {
     </Card>
   );
 }
+
