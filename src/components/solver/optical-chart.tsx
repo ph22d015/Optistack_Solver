@@ -19,15 +19,15 @@ interface OpticalChartProps {
 const chartConfig = {
   reflectance: {
     label: "Reflectance (R)",
-    color: "hsl(var(--chart-1))", // Intended: Red
+    color: "hsl(var(--chart-1))",
   },
   transmittance: {
     label: "Transmittance (T)",
-    color: "hsl(var(--chart-2))", // Intended: Green
+    color: "hsl(var(--chart-2))",
   },
   absorptance: {
     label: "Absorptance (A)",
-    color: "hsl(var(--chart-3))", // Intended: Blue
+    color: "hsl(var(--chart-3))",
   },
   wavelength: {
     label: "Wavelength (nm)",
@@ -58,13 +58,12 @@ export default function OpticalChart({ data }: OpticalChartProps) {
         <div className="min-h-[400px] w-full aspect-video bg-card p-4 rounded-md">
           <ChartContainer
             config={chartConfig}
-            // className="min-h-[400px] w-full aspect-video" // Original ChartContainer styling - applied to wrapper
           >
             <LineChart
               accessibilityLayer
               data={data}
               margin={{
-                top: 20,
+                top: 35, // Increased top margin for legend spacing
                 right: 30,
                 left: 20,
                 bottom: 20,
@@ -84,13 +83,13 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               />
               <YAxis
                 type="number"
-                name="Intensity"
+                name="Spectrum" // Changed from Intensity
                 tickLine={false}
                 axisLine={true}
                 tickMargin={8}
                 domain={[0, 1]}
                 tickFormatter={(value) => value.toFixed(1)}
-                label={{ value: 'Intensity (R, T, A)', angle: -90, position: 'insideLeft', offset: -10 }}
+                label={{ value: 'Spectrum (R,T,A)', angle: -90, position: 'insideLeft', offset: -10 }}
               />
               <ChartTooltip
                 cursor={true}
@@ -100,7 +99,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               <Line
                 dataKey="reflectance"
                 type="natural"
-                stroke="red" // Hardcoded for diagnosis
+                stroke="red"
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.reflectance.label}
@@ -108,7 +107,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               <Line
                 dataKey="transmittance"
                 type="natural"
-                stroke="green" // Hardcoded for diagnosis
+                stroke="green"
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.transmittance.label}
@@ -116,7 +115,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               <Line
                 dataKey="absorptance"
                 type="natural"
-                stroke="blue" // Hardcoded for diagnosis
+                stroke="blue"
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.absorptance.label}
@@ -128,3 +127,4 @@ export default function OpticalChart({ data }: OpticalChartProps) {
     </Card>
   );
 }
+
