@@ -13,21 +13,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma } from 'lucide-react';
-import React, { useEffect } from 'react';
+import React, { useEffect, type RefObject } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 interface InputFormProps {
   onSubmit: (data: SolverFormValues) => void;
   isLoading: boolean;
+  recaptchaRef: RefObject<ReCAPTCHA>;
+  recaptchaSiteKey: string;
 }
 
-export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
+export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }: InputFormProps) {
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
     mode: 'onBlur',
   });
 
-  const { control, watch, setValue, handleSubmit, formState: { isSubmitting } } = form;
+  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting } } = form; // Renamed to avoid conflict
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
@@ -77,11 +80,11 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     }
   }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, setValue]);
 
-
-  const handleFormSubmit = async (data: SolverFormValues) => {
-    onSubmit(data);
+  // This is the function that react-hook-form's handleSubmit will call with validated data.
+  // The actual submission logic (including reCAPTCHA) is in the `onSubmit` prop from `HomePage`.
+  const handleValidatedFormSubmit = (data: SolverFormValues) => {
+    onSubmit(data); // Call the orchestrating function from HomePage
   };
-
 
   return (
     <Card className="w-full shadow-lg">
@@ -91,7 +94,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+          <form onSubmit={formHandleSubmit(handleValidatedFormSubmit)} className="space-y-6"> {/* Use react-hook-form's handleSubmit */}
             
             <FormField
               control={control}
@@ -226,7 +229,6 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             
             <Separator />
 
-            {/* Conditional Sweep Parameter Inputs */}
             {sweepType === 'wavelength' && (
               <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={16}/>Wavelength Sweep Parameters</h3>
@@ -382,6 +384,15 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                   </div>
                 ))}
               </>
+            )}
+            
+            {recaptchaSiteKey && (
+              <div className="my-6 flex justify-center md:justify-start">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={recaptchaSiteKey}
+                />
+              </div>
             )}
 
             <Button type="submit" disabled={isLoading || isSubmitting} className="w-full md:w-auto mt-6">

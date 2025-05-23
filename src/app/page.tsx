@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useRef } from 'react';
+import type { RefObject } from 'react';
 import InputForm from '@/components/solver/input-form';
 import ResultsDisplay from '@/components/solver/results-display';
 import type { SolverFormValues, CalculationResults } from '@/types/solver';
@@ -9,6 +10,8 @@ import { calculateOpticalResponse } from '@/lib/solver-calculations';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
+import type ReCAPTCHA from 'react-google-recaptcha'; // Import type
+import { verifyRecaptchaToken } from './actions'; // Server Action
 
 export default function HomePage() {
   const [results, setResults] = useState<CalculationResults | null>(null);
@@ -16,8 +19,35 @@ export default function HomePage() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const handleSubmit = async (data: SolverFormValues) => {
-    setIsLoading(true);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
+  const handleFormSubmit = async (data: SolverFormValues) => {
+    if (!siteKey) {
+      // If siteKey is not configured, proceed without reCAPTCHA.
+      // In a production app, you might want to be stricter and show an error or disable the form.
+      console.warn("ReCAPTCHA site key not configured. Skipping verification.");
+    } else {
+      const token = recaptchaRef.current?.getValue();
+      if (!token) {
+        toast({ title: "ReCAPTCHA Required", description: "Please complete the reCAPTCHA.", variant: "destructive" });
+        return; // Stop submission
+      }
+
+      setIsLoading(true); // Set loading before async verification
+      const verification = await verifyRecaptchaToken(token);
+      recaptchaRef.current?.reset(); // Reset reCAPTCHA after attempting verification
+
+      if (!verification.success) {
+        toast({ title: "ReCAPTCHA Failed", description: verification.message, variant: "destructive" });
+        setIsLoading(false); // Reset loading
+        return; // Stop submission
+      }
+      // If verification is successful, isLoading remains true for the calculation part.
+    }
+
+    // If reCAPTCHA is not configured OR verification was successful:
+    setIsLoading(true); 
     setResults(null);
 
     startTransition(async () => {
@@ -63,7 +93,7 @@ export default function HomePage() {
                 src="/optical_stack_diagram.png" 
                 alt="Optical layers diagram"
                 layout="fill"
-                objectFit="contain" // Changed from "cover" to "contain"
+                objectFit="contain"
                 priority
             />
         </div>
@@ -73,8 +103,10 @@ export default function HomePage() {
 
       <div className="space-y-8"> 
         <InputForm
-          onSubmit={handleSubmit}
+          onSubmit={handleFormSubmit}
           isLoading={isLoading || isPending}
+          recaptchaRef={recaptchaRef}
+          recaptchaSiteKey={siteKey || ""} // Pass siteKey, default to empty string if undefined
         />
         <ResultsDisplay results={results} isLoading={isLoading || isPending} />
       </div>
