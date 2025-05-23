@@ -20,15 +20,15 @@ interface OpticalChartProps {
 const chartConfig = {
   reflectance: {
     label: "Reflectance (R)",
-    color: "hsl(0 70% 60%)", // Red
+    color: "hsl(var(--chart-1))", // Red
   },
   transmittance: {
     label: "Transmittance (T)",
-    color: "hsl(120 60% 50%)", // Green
+    color: "hsl(var(--chart-2))", // Green
   },
   absorptance: {
     label: "Absorptance (A)",
-    color: "hsl(220 70% 60%)", // Blue
+    color: "hsl(var(--chart-3))", // Blue
   },
   wavelength: {
     label: "Wavelength (nm)",
@@ -38,7 +38,7 @@ const chartConfig = {
 export default function OpticalChart({ data, chartId = "optical-response-chart-container" }: OpticalChartProps) {
   if (!data || data.length === 0) {
     return (
-      <Card className="shadow-md" id={chartId}>
+      <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Optical Response</CardTitle>
         </CardHeader>
@@ -56,9 +56,9 @@ export default function OpticalChart({ data, chartId = "optical-response-chart-c
         <CardDescription>Reflectance, Transmittance, and Absorptance vs. Wavelength</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* This div is what html2canvas will target */}
-        <div id={chartId}> 
-          <ChartContainer config={chartConfig} className="min-h-[400px] w-full aspect-video bg-background"> {/* Added bg-background for better canvas capture */}
+        {/* This div is what html2canvas will target. Added bg-card and padding for better image quality. */}
+        <div id={chartId} className="bg-card p-4 rounded-md"> 
+          <ChartContainer config={chartConfig} className="min-h-[400px] w-full aspect-video"> {/* Removed explicit bg-background here, parent has bg-card */}
             <LineChart
               accessibilityLayer
               data={data}
@@ -93,7 +93,7 @@ export default function OpticalChart({ data, chartId = "optical-response-chart-c
               />
               <ChartTooltip
                 cursor={true}
-                content={<ChartTooltipContent indicator="line" />} 
+                content={<ChartTooltipContent indicator="line" nameKey="name" labelKey="wavelength" />} 
               />
               <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
               <Line

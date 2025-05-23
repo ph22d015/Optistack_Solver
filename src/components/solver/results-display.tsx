@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Info, AlertTriangle, Download } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import html2canvas from 'html2canvas';
+import { useToast } from "@/hooks/use-toast"; // Added toast import
 
 interface ResultsDisplayProps {
   results: CalculationResults | null;
@@ -18,30 +19,58 @@ interface ResultsDisplayProps {
 const CHART_CONTAINER_ID = "optical-response-chart-container-for-download";
 
 export default function ResultsDisplay({ results, isLoading }: ResultsDisplayProps) {
+  const { toast } = useToast(); // Initialize toast
   const aiFeedback = results?.aiFeedback;
   const opticalData = results?.data;
 
   const handleDownloadChart = () => {
     const chartElement = document.getElementById(CHART_CONTAINER_ID);
     if (chartElement) {
+      const computedBackgroundColor = getComputedStyle(chartElement).backgroundColor;
+
       html2canvas(chartElement, {
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#ffffff', // Use card bg for canvas
-        useCORS: true, // If chart ever uses external images/fonts
-        scale: 2, // Increase resolution
+        backgroundColor: computedBackgroundColor || '#ffffff', // Use computed background or fallback to white
+        useCORS: true,
+        scale: 2,
+        logging: true, // Enable html2canvas console logging
+        onclone: (documentClone) => {
+          // Attempt to fix SVG rendering issues by ensuring explicit dimensions
+          // This is sometimes necessary for html2canvas to correctly capture SVGs.
+          const svgs = documentClone.querySelectorAll('svg');
+          svgs.forEach(svg => {
+            const rect = svg.getBoundingClientRect();
+            svg.setAttribute('width', `${rect.width}px`);
+            svg.setAttribute('height', `${rect.height}px`);
+            // It might be beneficial to inline styles here if complex CSS is used within SVGs
+            // For now, explicit dimensions are a good first step.
+          });
+        }
       }).then(canvas => {
         const link = document.createElement('a');
         link.download = 'optical_response_plot.jpg';
-        link.href = canvas.toDataURL('image/jpeg', 0.9); // Quality 0.9
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
         document.body.appendChild(link); // Required for Firefox
         link.click();
         document.body.removeChild(link);
+        toast({
+          title: "Chart Downloaded",
+          description: "The plot has been saved as optical_response_plot.jpg.",
+        });
       }).catch(err => {
-        console.error("Error generating chart image:", err);
-        // Optionally, inform the user with a toast
+        console.error("Failed to download chart image. Error:", err);
+        toast({
+          title: "Download Failed",
+          description: "Could not generate chart image. See console for details.",
+          variant: "destructive",
+        });
       });
     } else {
-      console.warn("Chart element not found for download.");
-      // Optionally, inform the user
+      console.warn(`Chart element with ID '${CHART_CONTAINER_ID}' not found for download.`);
+      toast({
+        title: "Download Error",
+        description: `Chart element with ID '${CHART_CONTAINER_ID}' not found. Cannot download.`,
+        variant: "destructive",
+      });
     }
   };
 
