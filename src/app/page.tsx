@@ -5,7 +5,6 @@ import React, { useState, useTransition } from 'react';
 import InputForm from '@/components/solver/input-form';
 import ResultsDisplay from '@/components/solver/results-display';
 import type { SolverFormValues, CalculationResults } from '@/types/solver';
-// AI Validation related imports are removed
 import { calculateOpticalResponse } from '@/lib/solver-calculations';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
@@ -23,12 +22,8 @@ export default function HomePage() {
 
     startTransition(async () => {
       try {
-        // AI Validation call is removed
-        
-        // The calculateOpticalResponse now returns an object { data: OpticalResponsePoint[], sweepParameter: SweepParameter }
         const calculationOutput = await calculateOpticalResponse(data);
         
-        // aiFeedback is removed from results
         setResults({ data: calculationOutput.data, sweepParameter: calculationOutput.sweepParameter });
 
         toast({
@@ -42,11 +37,9 @@ export default function HomePage() {
           description: error instanceof Error ? error.message : "An unexpected error occurred during calculation.",
           variant: "destructive",
         });
-        // Ensure sweepParameter is provided even on error for chart consistency
-        // aiFeedback is removed
         setResults({ 
             data: [], 
-            sweepParameter: data.sweepType, // Use sweepType from form data as fallback
+            sweepParameter: data.sweepType, 
         });
       } finally {
         setIsLoading(false);
@@ -67,7 +60,7 @@ export default function HomePage() {
         </div>
          <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl mb-12">
             <Image
-                src="https://placehold.co/1200x600.png"
+                src="https://placehold.co/1200x600.png" 
                 alt="Optical layers abstract representation"
                 layout="fill"
                 objectFit="cover"
