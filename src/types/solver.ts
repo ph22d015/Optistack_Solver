@@ -8,8 +8,8 @@ export const LayerParamSchema = z.object({
 export const ComplexRefractiveIndexSchema = z.object({
   n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"), // n can be < 1 for metals, >= 0
   k: z.coerce.number().min(0, "k must be non-negative").describe("Extinction coefficient (imaginary part)"),
-}).refine(data => data.n >= 1.0 || data.k > 0, {
-    message: "If k is 0 (or very small), n should generally be >= 1.0. For k > 0 (absorbing media/metals), n can be < 1.",
+}).refine(data => data.n >= 1.0 || data.k > 0 || (data.n === 0 && data.k === 0) || (data.n < 1.0 && data.n > 0 && data.k > 0) , { // Allow n=0,k=0 for vacuum/perfect conductor idealization; allow n<1 for metals if k>0
+    message: "If k is 0 (or very small), n should generally be >= 1.0. For k > 0 (absorbing media/metals), n can be < 1. n=0, k=0 is a special case.",
     path: ["n"],
 });
 
@@ -59,11 +59,12 @@ export interface CalculationResults {
 export const defaultSolverFormValues: SolverFormValues = {
   incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air
   substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air
-  numLayers: 0,
-  thickness: [],
-  refractiveIndex: [],
+  numLayers: 1, // Default to 1 layer
+  thickness: [100], // Default thickness for the first layer (e.g., 100nm)
+  refractiveIndex: [{ n: 1.0, k: 0.0 }], // Default n, k for the first layer
   angleOfIncidence: 0,
   polarization: 'TE',
   minWavelength: 400,
   maxWavelength: 700,
 };
+
