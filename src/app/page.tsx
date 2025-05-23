@@ -60,11 +60,10 @@ export default function HomePage() {
         </div>
          <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl mb-12">
             <Image
-                src="https://placehold.co/1200x600.png" 
-                alt="Optical layers abstract representation"
+                src="/optical_stack_diagram.png" 
+                alt="Optical layers diagram"
                 layout="fill"
                 objectFit="cover"
-                data-ai-hint="optics lightwave"
                 priority
             />
         </div>
