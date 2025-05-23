@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export const LayerParamSchema = z.object({
@@ -5,12 +6,18 @@ export const LayerParamSchema = z.object({
 });
 
 export const ComplexRefractiveIndexSchema = z.object({
-  n: z.coerce.number().min(1.0, "n must be >= 1.0").describe("Real part of refractive index"),
+  n: z.coerce.number().min(1.0, "n must be >= 1.0 (or >=0 for k>0)").describe("Real part of refractive index"),
   k: z.coerce.number().min(0, "k must be non-negative").describe("Extinction coefficient (imaginary part)"),
+}).refine(data => data.n >= 0 || data.k == 0, { // n can be < 1 for metals if k > 0, but for dielectrics n usually >=1
+    message: "If k > 0, n can be < 1. Otherwise n should be >= 1.0.",
+    path: ["n"],
 });
 
+
 export const SolverFormSchema = z.object({
-  numLayers: z.coerce.number().int().min(1, "Min 1 layer").max(10, "Max 10 layers for demo"),
+  incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the incident medium"),
+  substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the substrate medium"),
+  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(10, "Max 10 layers for demo"), // Min 0 layers if incident/substrate are defined
   thickness: z.array(z.coerce.number().min(0.1, "Thickness > 0 nm")).describe("Layer thicknesses in nm"),
   refractiveIndex: z.array(ComplexRefractiveIndexSchema).describe("Layer complex refractive indices"),
   angleOfIncidence: z.coerce.number().min(0, "Angle: 0-90°").max(90, "Angle: 0-90°").describe("Angle of incidence in degrees"),
@@ -50,6 +57,8 @@ export interface CalculationResults {
 }
 
 export const defaultSolverFormValues: SolverFormValues = {
+  incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air/Vacuum
+  substrateMediumRefractiveIndex: { n: 1.5, k: 0.0 }, // Typical Glass
   numLayers: 2,
   thickness: [100, 100],
   refractiveIndex: [
@@ -61,3 +70,4 @@ export const defaultSolverFormValues: SolverFormValues = {
   minWavelength: 400,
   maxWavelength: 700,
 };
+

@@ -21,6 +21,8 @@ export default function HomePage() {
     try {
       // Map SolverFormValues to the structure expected by performAiValidation
       const aiValidationInput = {
+        incidentMediumRefractiveIndex: data.incidentMediumRefractiveIndex,
+        substrateMediumRefractiveIndex: data.substrateMediumRefractiveIndex,
         numLayers: data.numLayers,
         thickness: data.thickness.map(t => Number(t)),
         refractiveIndex: data.refractiveIndex.map(ri => ({
@@ -51,7 +53,10 @@ export default function HomePage() {
     
     startTransition(async () => {
       try {
+        // Prepare data for AI validation
         const aiValidationInput = {
+            incidentMediumRefractiveIndex: data.incidentMediumRefractiveIndex,
+            substrateMediumRefractiveIndex: data.substrateMediumRefractiveIndex,
             numLayers: data.numLayers,
             thickness: data.thickness.map(t => Number(t)),
             refractiveIndex: data.refractiveIndex.map(ri => ({
@@ -65,7 +70,7 @@ export default function HomePage() {
         };
         const aiFeedback = await performAiValidation(aiValidationInput);
 
-        // Pass the full 'data' object which now includes wavelength range
+        // Pass the full 'data' object which now includes all necessary fields
         const opticalData = await calculateOpticalResponse(data);
         setResults({ data: opticalData, aiFeedback });
 
@@ -80,7 +85,7 @@ export default function HomePage() {
           description: error instanceof Error ? error.message : "An unexpected error occurred during calculation.",
           variant: "destructive",
         });
-        setResults({ data: [], aiFeedback: { warnings: ["Calculation failed."], suggestions: [] } });
+        setResults({ data: [], aiFeedback: { warnings: ["Calculation failed: " + (error instanceof Error ? error.message : String(error))], suggestions: [] } });
       } finally {
         setIsLoading(false);
       }
@@ -95,7 +100,7 @@ export default function HomePage() {
             Simulate Multilayer Optical Stacks
           </h2>
           <p className="mt-4 text-lg leading-8 text-foreground/80">
-            Define your optical stack parameters, calculate its response, and visualize the results.
+            Define your optical stack parameters, including surrounding media, calculate its response, and visualize the results.
             Our AI assistant helps prevent errors and suggests optimal configurations.
           </p>
         </div>

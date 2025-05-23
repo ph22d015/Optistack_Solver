@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, AlertCircle, ScanLine, Baseline } from 'lucide-react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, AlertCircle, ScanLine, Baseline, ArrowDownUp, BoxSelect } from 'lucide-react';
 import React, { useEffect } from 'react';
 import type { AiFeedback } from '@/types/solver';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,7 +28,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur', // Validate on blur for better UX
+    mode: 'onBlur', 
   });
 
   const { control, watch, setValue, getValues, handleSubmit, formState: { errors, isSubmitting } } = form;
@@ -50,19 +50,16 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
-    if (isNaN(parsedNumLayers) || parsedNumLayers < 1 || parsedNumLayers > 10) {
-       // Clear arrays if numLayers is invalid to prevent refine errors on potentially stale array lengths
+    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 10) { 
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
       if (refractiveIndexFields.length > 0) setValue("refractiveIndex", [], { shouldValidate: true, shouldDirty: true });
       return;
     }
   
-    // Adjust thickness array
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
-        const existingValue = getValues(`thickness.${i}`);
-        appendThickness(existingValue === undefined ? 100 : Number(existingValue), { shouldFocus: false });
+        appendThickness(getValues(`thickness.${i}`) ?? 100, { shouldFocus: false });
       }
     } else if (parsedNumLayers < currentThicknessLength) {
       for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
@@ -70,17 +67,11 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
       }
     }
   
-    // Adjust refractiveIndex array
     const currentRefractiveIndexLength = refractiveIndexFields.length;
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
-        const existingValueN = getValues(`refractiveIndex.${i}.n`);
-        const existingValueK = getValues(`refractiveIndex.${i}.k`);
         appendRefractiveIndex(
-          { 
-            n: existingValueN === undefined ? 1.5 : Number(existingValueN), 
-            k: existingValueK === undefined ? 0 : Number(existingValueK)
-          }, 
+          getValues(`refractiveIndex.${i}`) ?? { n: 1.5, k: 0 }, 
           { shouldFocus: false }
         );
       }
@@ -89,8 +80,6 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
         removeRefractiveIndex(i);
       }
     }
-  // getValues is stable, setValue is stable. Array modification functions are stable.
-  // Lengths are added to ensure re-run if arrays are modified externally (less likely here).
   }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, getValues, setValue]);
   
 
@@ -100,7 +89,6 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
     setAiFeedback(validationFeedback);
 
     if (validationFeedback && (validationFeedback.warnings.length > 0)) {
-      // User is warned, but can choose to proceed.
       console.log("AI validation has warnings.");
     }
     onSubmit(data);
@@ -111,12 +99,81 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
     <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Layers size={24} /> Input Parameters</CardTitle>
-        <CardDescription>Define the multilayer stack, optical, and wavelength properties.</CardDescription>
+        <CardDescription>Define the multilayer stack, surrounding media, optical, and wavelength properties.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <h3 className="text-lg font-medium flex items-center gap-2"><ArrowDownUp size={20}/>Surrounding Media</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md shadow-sm bg-card/50">
+                <div>
+                    <Label className="font-semibold text-md mb-2 block">Incident Medium (Top)</Label>
+                    <div className="space-y-3">
+                        <FormField
+                            control={control}
+                            name="incidentMediumRefractiveIndex.n"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
+                                <FormControl>
+                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={control}
+                            name="incidentMediumRefractiveIndex.k"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
+                                <FormControl>
+                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </div>
+                </div>
+                 <div>
+                    <Label className="font-semibold text-md mb-2 block">Substrate Medium (Bottom)</Label>
+                     <div className="space-y-3">
+                        <FormField
+                            control={control}
+                            name="substrateMediumRefractiveIndex.n"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
+                                <FormControl>
+                                <Input type="number" step="0.01" placeholder="e.g., 1.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={control}
+                            name="substrateMediumRefractiveIndex.k"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
+                                <FormControl>
+                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <Separator />
+            <h3 className="text-lg font-medium flex items-center gap-2"><BoxSelect size={20}/>Stack & Optical Properties</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={control}
                 name="numLayers"
@@ -124,7 +181,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
                   <FormItem>
                     <FormLabel className="flex items-center gap-1"><Layers size={16} />Number of Layers</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 3" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
+                      <Input type="number" placeholder="e.g., 2" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -201,7 +258,7 @@ export default function InputForm({ onSubmit, onValidate, isLoading, initialAiFe
             {numLayers > 0 && !isNaN(numLayers) && numLayers <= 10 && (
               <>
                 <Separator className="my-6" />
-                <h3 className="text-lg font-medium mb-4">Layer Details</h3>
+                <h3 className="text-lg font-medium mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
                 {Array.from({ length: numLayers }).map((_, index) => (
                   <div key={index} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
                     <h4 className="font-semibold text-md text-primary">Layer {index + 1}</h4>
