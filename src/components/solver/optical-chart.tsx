@@ -14,28 +14,27 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 interface OpticalChartProps {
   data: OpticalResponsePoint[];
-  // chartId prop removed
 }
 
 const chartConfig = {
   reflectance: {
     label: "Reflectance (R)",
-    color: "hsl(var(--chart-1))", // Red
+    color: "hsl(var(--chart-1))", // Intended: Red
   },
   transmittance: {
     label: "Transmittance (T)",
-    color: "hsl(var(--chart-2))", // Green
+    color: "hsl(var(--chart-2))", // Intended: Green
   },
   absorptance: {
     label: "Absorptance (A)",
-    color: "hsl(var(--chart-3))", // Blue
+    color: "hsl(var(--chart-3))", // Intended: Blue
   },
   wavelength: {
     label: "Wavelength (nm)",
   }
 };
 
-export default function OpticalChart({ data }: OpticalChartProps) { // chartId prop removed from destructuring
+export default function OpticalChart({ data }: OpticalChartProps) {
   if (!data || data.length === 0) {
     return (
       <Card className="shadow-md">
@@ -56,23 +55,19 @@ export default function OpticalChart({ data }: OpticalChartProps) { // chartId p
         <CardDescription>Reflectance, Transmittance, and Absorptance vs. Wavelength</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Apply styling for visual appearance to a wrapper DIV, id removed */}
-        <div 
-          // id attribute removed
-          className="min-h-[400px] w-full aspect-video bg-card p-4 rounded-md" 
-        >
+        <div className="min-h-[400px] w-full aspect-video bg-card p-4 rounded-md">
           <ChartContainer
             config={chartConfig}
-            // className="min-h-[400px] w-full aspect-video" // Original ChartContainer styling
+            // className="min-h-[400px] w-full aspect-video" // Original ChartContainer styling - applied to wrapper
           >
             <LineChart
               accessibilityLayer
               data={data}
               margin={{
-                top: 20, 
-                right: 30, 
-                left: 20,  
-                bottom: 20, 
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 20,
               }}
             >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -89,7 +84,7 @@ export default function OpticalChart({ data }: OpticalChartProps) { // chartId p
               />
               <YAxis
                 type="number"
-                name="Intensity" 
+                name="Intensity"
                 tickLine={false}
                 axisLine={true}
                 tickMargin={8}
@@ -99,13 +94,13 @@ export default function OpticalChart({ data }: OpticalChartProps) { // chartId p
               />
               <ChartTooltip
                 cursor={true}
-                content={<ChartTooltipContent indicator="line" nameKey="name" labelKey="wavelength" />} 
+                content={<ChartTooltipContent indicator="line" nameKey="name" labelKey="wavelength" />}
               />
               <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
               <Line
                 dataKey="reflectance"
                 type="natural"
-                stroke="var(--color-reflectance)"
+                stroke="red" // Hardcoded for diagnosis
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.reflectance.label}
@@ -113,7 +108,7 @@ export default function OpticalChart({ data }: OpticalChartProps) { // chartId p
               <Line
                 dataKey="transmittance"
                 type="natural"
-                stroke="var(--color-transmittance)"
+                stroke="green" // Hardcoded for diagnosis
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.transmittance.label}
@@ -121,7 +116,7 @@ export default function OpticalChart({ data }: OpticalChartProps) { // chartId p
               <Line
                 dataKey="absorptance"
                 type="natural"
-                stroke="var(--color-absorptance)"
+                stroke="blue" // Hardcoded for diagnosis
                 strokeWidth={2}
                 dot={false}
                 name={chartConfig.absorptance.label}
