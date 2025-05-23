@@ -17,16 +17,12 @@ export default function HomePage() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  // handleValidate function is removed as it's no longer used by InputForm directly
-  // The AI validation will be done only in handleSubmit
-
   const handleSubmit = async (data: SolverFormValues) => {
     setIsLoading(true);
     setResults(null);
 
     startTransition(async () => {
       try {
-        // Prepare data for AI validation (already correctly structured in 'data')
         const aiValidationInput = {
             incidentMediumRefractiveIndex: data.incidentMediumRefractiveIndex,
             substrateMediumRefractiveIndex: data.substrateMediumRefractiveIndex,
@@ -91,14 +87,13 @@ export default function HomePage() {
       <Separator />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3"> {/* Changed from lg:col-span-2 */}
           <InputForm
             onSubmit={handleSubmit}
-            // onValidate prop removed
             isLoading={isLoading || isPending}
           />
         </div>
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-2"> {/* Changed from lg:col-span-3 */}
           <ResultsDisplay results={results} isLoading={isLoading || isPending} />
         </div>
       </div>
