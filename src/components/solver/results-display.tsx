@@ -1,11 +1,11 @@
 
 'use client';
 
-import type { CalculationResults, SweepParameter } from '@/types/solver';
+import type { CalculationResults } from '@/types/solver';
 import OpticalChart from './optical-chart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, AlertTriangle, Download } from 'lucide-react';
+// Alert related imports are removed
+import { Download } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,7 @@ interface ResultsDisplayProps {
 
 export default function ResultsDisplay({ results, isLoading }: ResultsDisplayProps) {
   const { toast } = useToast();
-  const aiFeedback = results?.aiFeedback;
+  // aiFeedback is removed
   const opticalData = results?.data;
   const sweepParameter = results?.sweepParameter ?? 'wavelength'; // Default to wavelength if not present
 
@@ -82,7 +82,7 @@ export default function ResultsDisplay({ results, isLoading }: ResultsDisplayPro
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Results</CardTitle>
-          <CardDescription>Calculated optical response and AI feedback.</CardDescription>
+          <CardDescription>Calculated optical response.</CardDescription> {/* AI feedback part removed */}
         </div>
         <Button
           variant="outline"
@@ -103,20 +103,11 @@ export default function ResultsDisplay({ results, isLoading }: ResultsDisplayPro
           </div>
         )}
 
-        {!isLoading && aiFeedback && (aiFeedback.warnings.length > 0 || aiFeedback.suggestions.length > 0) && (
-          <Alert variant={aiFeedback.warnings.length > 0 ? "destructive" : "default"}>
-            {aiFeedback.warnings.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <Info className="h-4 w-4" />}
-            <AlertTitle>{aiFeedback.warnings.length > 0 ? "AI Validation Warnings" : "AI Suggestions"}</AlertTitle>
-            <AlertDescription>
-              {aiFeedback.warnings.map((warning, i) => <p key={`warn-res-${i}`}>{warning}</p>)}
-              {aiFeedback.suggestions.map((suggestion, i) => <p key={`sugg-res-${i}`}>{suggestion}</p>)}
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* AI Feedback Alert section is removed */}
 
         {!isLoading && opticalData && <OpticalChart data={opticalData} sweepParameter={sweepParameter} />}
         
-        {!isLoading && !opticalData && !aiFeedback && (
+        {!isLoading && !opticalData && ( // Condition simplified
           <p className="text-muted-foreground text-center py-10">
             Enter parameters and click "Calculate" to see results.
           </p>

@@ -4,8 +4,8 @@
 import React, { useState, useTransition } from 'react';
 import InputForm from '@/components/solver/input-form';
 import ResultsDisplay from '@/components/solver/results-display';
-import type { SolverFormValues, CalculationResults, AiFeedback, SweepParameter } from '@/types/solver';
-import { performAiValidation } from '@/app/actions';
+import type { SolverFormValues, CalculationResults } from '@/types/solver';
+// AI Validation related imports are removed
 import { calculateOpticalResponse } from '@/lib/solver-calculations';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
@@ -23,13 +23,13 @@ export default function HomePage() {
 
     startTransition(async () => {
       try {
-        // AI Validation input mapping is now direct as SolverFormValues matches ValidateInputParametersInput structure
-        const aiFeedback = await performAiValidation(data);
+        // AI Validation call is removed
         
         // The calculateOpticalResponse now returns an object { data: OpticalResponsePoint[], sweepParameter: SweepParameter }
         const calculationOutput = await calculateOpticalResponse(data);
         
-        setResults({ data: calculationOutput.data, sweepParameter: calculationOutput.sweepParameter, aiFeedback });
+        // aiFeedback is removed from results
+        setResults({ data: calculationOutput.data, sweepParameter: calculationOutput.sweepParameter });
 
         toast({
           title: "Calculation Complete",
@@ -43,10 +43,10 @@ export default function HomePage() {
           variant: "destructive",
         });
         // Ensure sweepParameter is provided even on error for chart consistency
+        // aiFeedback is removed
         setResults({ 
             data: [], 
             sweepParameter: data.sweepType, // Use sweepType from form data as fallback
-            aiFeedback: { warnings: ["Calculation failed: " + (error instanceof Error ? error.message : String(error))], suggestions: [] } 
         });
       } finally {
         setIsLoading(false);
@@ -62,8 +62,7 @@ export default function HomePage() {
             Simulate Multilayer Optical Stacks
           </h2>
           <p className="mt-4 text-lg leading-8 text-foreground/80">
-            Define your optical stack parameters, calculate its response over wavelength or angle, and visualize the results.
-            Our AI assistant helps prevent errors and suggests optimal configurations.
+            Define your optical stack parameters and calculate its response over wavelength or angle.
           </p>
         </div>
          <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl mb-12">
