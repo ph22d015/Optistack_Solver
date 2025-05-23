@@ -65,7 +65,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
         appendRefractiveIndex(
-          getValues(`refractiveIndex.${i}`) ?? { n: 1.0, k: 0.0 }, // Default new layer RI to n=1, k=0
+          getValues(`refractiveIndex.${i}`) ?? { n: 1.0, k: 0.0 }, 
           { shouldFocus: false }
         );
       }
@@ -104,7 +104,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormItem>
                                 <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
                                 <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -117,7 +117,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormItem>
                                 <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
                                 <FormControl>
-                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -135,7 +135,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormItem>
                                 <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
                                 <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -148,7 +148,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormItem>
                                 <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
                                 <FormControl>
-                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -168,7 +168,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                   <FormItem>
                     <FormLabel className="flex items-center gap-1"><Layers size={16} />Number of Layers</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 0" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
+                      <Input type="number" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -181,7 +181,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                   <FormItem>
                     <FormLabel className="flex items-center gap-1"><GitCommitHorizontal size={16} />Angle of Incidence (°)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" placeholder="e.g., 0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                      <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -220,7 +220,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                     <FormItem>
                         <FormLabel>Min Wavelength (nm)</FormLabel>
                         <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 400" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                        <Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -233,7 +233,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                     <FormItem>
                         <FormLabel>Max Wavelength (nm)</FormLabel>
                         <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 700" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                        <Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -257,6 +257,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                           <FormLabel className="flex items-center gap-1"><Ruler size={16} />Thickness (nm)</FormLabel>
                           <FormControl>
                             <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
+                            value={field.value ?? ''}
                             onChange={e => field.onChange(parseFloat(e.target.value))}
                             />
                           </FormControl>
@@ -273,6 +274,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
                             <FormControl>
                                 <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
+                                value={field.value ?? ''}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
                                 />
                             </FormControl>
@@ -288,6 +290,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
                             <FormControl>
                                 <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
+                                value={field.value ?? ''}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
                                 />
                             </FormControl>
