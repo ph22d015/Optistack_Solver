@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  /* Font family is applied via next/font classes in layout.tsx */
+  /* The --font-geist-sans variable is available if you need it for specific overrides */
 }
 
 @layer base {
@@ -27,13 +28,13 @@ body {
     --border: 210 20% 80%;
     --input: 210 20% 88%;
     --ring: 221 44% 41.4%; /* Use primary for ring */
-    --chart-1: 221 44% 50%;
-    --chart-2: 243 80% 65%;
-    --chart-3: 197 37% 24%;
+    --chart-1: hsl(0 70% 60%); /* Red for Reflectance */
+    --chart-2: hsl(120 60% 50%); /* Green for Transmittance */
+    --chart-3: hsl(220 70% 60%); /* Blue for Absorptance */
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    
+
     /* Sidebar variables - can be adjusted if sidebar is used extensively or keep defaults */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -64,8 +65,9 @@ body {
     --border: 220 13% 25%;
     --input: 220 13% 20%;
     --ring: 221 44% 51.4%;
-    --chart-1: 221 44% 60%;
-    --chart-2: 243 80% 70%;
+    --chart-1: hsl(0 70% 70%); /* Lighter Red for Reflectance in dark mode */
+    --chart-2: hsl(120 60% 60%); /* Lighter Green for Transmittance in dark mode */
+    --chart-3: hsl(220 70% 70%); /* Lighter Blue for Absorptance in dark mode */
 
     /* Dark Sidebar variables - adjust as needed */
     --sidebar-background: 240 5.9% 10%;
