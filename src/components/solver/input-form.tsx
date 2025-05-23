@@ -27,7 +27,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     mode: 'onBlur',
   });
 
-  const { control, watch, setValue, getValues, handleSubmit, formState: { errors, isSubmitting } } = form;
+  const { control, watch, setValue, handleSubmit, formState: { isSubmitting } } = form;
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
@@ -45,7 +45,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
-    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) { // Changed from 10 to 20
+    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) { 
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
       if (refractiveIndexFields.length > 0) setValue("refractiveIndex", [], { shouldValidate: true, shouldDirty: true });
       return;
@@ -54,7 +54,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
-        appendThickness(100, { shouldFocus: false }); // Default thickness 100nm
+        appendThickness(100, { shouldFocus: false }); 
       }
     } else if (parsedNumLayers < currentThicknessLength) {
       for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
@@ -66,7 +66,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
         appendRefractiveIndex(
-          { n: 1.0, k: 0.0 }, // Default n=1, k=0
+          { n: 1.0, k: 0.0 }, 
           { shouldFocus: false }
         );
       }
@@ -86,7 +86,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Sigma size={24} /> Input Parameters</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-2xl mb-2"><Sigma size={24} /> Input Parameters</CardTitle>
         <CardDescription>Define the multilayer stack, surrounding media, optical, and sweep properties.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -322,7 +322,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             )}
 
 
-            {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && ( // Changed from 10 to 20
+            {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && ( 
               <>
                 <Separator className="my-6" />
                 <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>

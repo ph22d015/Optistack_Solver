@@ -63,7 +63,7 @@ export default function HomePage() {
                 src="/optical_stack_diagram.png" 
                 alt="Optical layers diagram"
                 layout="fill"
-                objectFit="cover"
+                objectFit="contain" // Changed from "cover" to "contain"
                 priority
             />
         </div>

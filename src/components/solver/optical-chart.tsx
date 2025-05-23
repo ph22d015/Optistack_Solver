@@ -20,17 +20,17 @@ interface OpticalChartProps {
 const getChartConfig = (sweepParameter: SweepParameter) => ({
   reflectance: {
     label: "Reflectance (R)",
-    color: "red", // Hardcoded for now
+    color: "hsl(var(--chart-1))", 
   },
   transmittance: {
     label: "Transmittance (T)",
-    color: "green", // Hardcoded for now
+    color: "hsl(var(--chart-2))", 
   },
   absorptance: {
     label: "Absorptance (A)",
-    color: "blue", // Hardcoded for now
+    color: "hsl(var(--chart-3))", 
   },
-  xValue: {
+  xValue: { // This entry is not directly used by Recharts Lines but good for context
     label: sweepParameter === 'wavelength' ? "Wavelength (nm)" : "Angle (°)",
   }
 });
@@ -42,7 +42,7 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
     return (
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle>Optical Response</CardTitle>
+          <CardTitle className="mb-2">Optical Response</CardTitle>
         </CardHeader>
         <CardContent className="min-h-[400px] flex items-center justify-center">
           <p className="text-muted-foreground">No data to display. Please perform a calculation.</p>
@@ -57,7 +57,7 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
   return (
     <Card className="shadow-md">
       <CardHeader>
-        <CardTitle>Optical Response</CardTitle>
+        <CardTitle className="mb-2">Optical Response</CardTitle>
         <CardDescription>Reflectance, Transmittance, and Absorptance vs. {xAxisLabel}</CardDescription>
       </CardHeader>
       <CardContent className="min-h-[400px] w-full bg-card p-4 rounded-md">
@@ -66,17 +66,17 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
             accessibilityLayer
             data={data}
             margin={{
-              top: 60,
+              top: 60, // Increased top margin for legend
               right: 30,
               left: 20,
-              bottom: 50,
+              bottom: 50, // Increased bottom margin for x-axis label
             }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
               dataKey="xValue"
               type="number"
-              name={xAxisLabel} // Used by tooltip content internally if no labelFormatter
+              name={xAxisLabel}
               unit={xAxisUnit}
               tickLine={false}
               axisLine={true}
@@ -99,8 +99,7 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
               content={
                 <ChartTooltipContent 
                   indicator="line" 
-                  labelFormatter={(value, payload) => {
-                    // 'value' here is the xValue (wavelength or angle)
+                  labelFormatter={(value) => { // 'value' here is the xValue (wavelength or angle)
                     if (typeof value === 'number') {
                       return `${xAxisLabel}: ${value.toFixed(2)} ${xAxisUnit}`;
                     }
@@ -117,7 +116,7 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
             <Line
               dataKey="reflectance"
               type="natural"
-              stroke={chartConfig.reflectance.color} 
+              stroke="red" // Hardcoded for testing, should use chartConfig.reflectance.color
               strokeWidth={2}
               dot={false}
               name={chartConfig.reflectance.label}
@@ -125,7 +124,7 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
             <Line
               dataKey="transmittance"
               type="natural"
-              stroke={chartConfig.transmittance.color}
+              stroke="green" // Hardcoded for testing, should use chartConfig.transmittance.color
               strokeWidth={2}
               dot={false}
               name={chartConfig.transmittance.label}
@@ -133,7 +132,7 @@ export default function OpticalChart({ data, sweepParameter }: OpticalChartProps
             <Line
               dataKey="absorptance"
               type="natural"
-              stroke={chartConfig.absorptance.color}
+              stroke="blue" // Hardcoded for testing, should use chartConfig.absorptance.color
               strokeWidth={2}
               dot={false}
               name={chartConfig.absorptance.label}
