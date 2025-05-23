@@ -6,24 +6,33 @@ export const LayerParamSchema = z.object({
 });
 
 export const ComplexRefractiveIndexSchema = z.object({
-  n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"), // n can be < 1 for metals, >= 0
+  n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"),
   k: z.coerce.number().min(0, "k must be non-negative").describe("Extinction coefficient (imaginary part)"),
-}).refine(data => data.n >= 1.0 || data.k > 0 || (data.n === 0 && data.k === 0) || (data.n < 1.0 && data.n > 0 && data.k > 0) , { // Allow n=0,k=0 for vacuum/perfect conductor idealization; allow n<1 for metals if k>0
+}).refine(data => data.n >= 1.0 || data.k > 0 || (data.n === 0 && data.k === 0) || (data.n < 1.0 && data.n > 0 && data.k > 0) , {
     message: "If k is 0 (or very small), n should generally be >= 1.0. For k > 0 (absorbing media/metals), n can be < 1. n=0, k=0 is a special case.",
     path: ["n"],
 });
 
 
 export const SolverFormSchema = z.object({
+  sweepType: z.enum(['wavelength', 'angle']).default('wavelength').describe("Parameter to sweep in the calculation."),
   incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the incident medium"),
   substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the substrate medium"),
   numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(10, "Max 10 layers for demo"),
   thickness: z.array(z.coerce.number().min(0.1, "Thickness must be > 0 nm")).describe("Layer thicknesses in nm"),
   refractiveIndex: z.array(ComplexRefractiveIndexSchema).describe("Layer complex refractive indices"),
-  angleOfIncidence: z.coerce.number().min(0, "Angle must be 0-90°").max(90, "Angle must be 0-90°").describe("Angle of incidence in degrees"),
-  polarization: z.enum(['TE', 'TM'], { required_error: "Polarization is required" }).describe("Polarization of light"),
+  
+  // Fields for wavelength sweep
   minWavelength: z.coerce.number().min(1, "Min wavelength must be > 0 nm").default(400),
   maxWavelength: z.coerce.number().min(1, "Max wavelength must be > 0 nm").default(700),
+  angleOfIncidence: z.coerce.number().min(0, "Angle must be 0-89.9°").max(89.9, "Angle must be 0-89.9°").default(0).describe("Angle of incidence in degrees for wavelength sweep"),
+  
+  // Fields for angle sweep
+  wavelength: z.coerce.number().min(1, "Wavelength must be > 0 nm").default(500).describe("Single wavelength in nm for angle sweep"),
+  minAngle: z.coerce.number().min(0, "Min angle must be 0-89.9°").max(89.9, "Min angle must be 0-89.9°").default(0),
+  maxAngle: z.coerce.number().min(0, "Max angle must be 0-89.9°").max(89.9, "Max angle must be 0-89.9°").default(89.9),
+
+  polarization: z.enum(['TE', 'TM'], { required_error: "Polarization is required" }).describe("Polarization of light"),
 }).refine(data => data.thickness.length === data.numLayers, {
   message: "Thickness entries must match number of layers.",
   path: ["numLayers"],
@@ -32,9 +41,24 @@ export const SolverFormSchema = z.object({
   message: "Refractive index entries must match number of layers.",
   path: ["numLayers"],
 })
-.refine(data => data.maxWavelength > data.minWavelength, {
-  message: "Max wavelength must be greater than min wavelength.",
-  path: ["maxWavelength"],
+.superRefine((data, ctx) => {
+  if (data.sweepType === 'wavelength') {
+    if (data.maxWavelength <= data.minWavelength) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Max wavelength must be greater than min wavelength.",
+        path: ["maxWavelength"],
+      });
+    }
+  } else if (data.sweepType === 'angle') {
+    if (data.maxAngle <= data.minAngle) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Max angle must be greater than min angle.",
+        path: ["maxAngle"],
+      });
+    }
+  }
 });
 
 export type SolverFormValues = z.infer<typeof SolverFormSchema>;
@@ -44,8 +68,10 @@ export interface AiFeedback {
   suggestions: string[];
 }
 
+export type SweepParameter = 'wavelength' | 'angle';
+
 export interface OpticalResponsePoint {
-  wavelength: number; // nm
+  xValue: number; // Will hold either wavelength or angle
   reflectance: number; // 0-1
   transmittance: number; // 0-1
   absorptance: number; // 0-1
@@ -53,18 +79,25 @@ export interface OpticalResponsePoint {
 
 export interface CalculationResults {
   data: OpticalResponsePoint[];
+  sweepParameter: SweepParameter; // To tell the chart what xValue represents
   aiFeedback?: AiFeedback;
 }
 
 export const defaultSolverFormValues: SolverFormValues = {
-  incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air
-  substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air
-  numLayers: 1, // Default to 1 layer
-  thickness: [100], // Default thickness for the first layer (e.g., 100nm)
-  refractiveIndex: [{ n: 1.0, k: 0.0 }], // Default n, k for the first layer
-  angleOfIncidence: 0,
-  polarization: 'TE',
+  sweepType: 'wavelength',
+  incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 },
+  substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 },
+  numLayers: 1,
+  thickness: [100], 
+  refractiveIndex: [{ n: 1.0, k: 0.0 }],
+  
   minWavelength: 400,
   maxWavelength: 700,
-};
+  angleOfIncidence: 0,
+  
+  wavelength: 500, // Default single wavelength for angle sweep
+  minAngle: 0,      // Default min angle for angle sweep
+  maxAngle: 89.9,   // Default max angle for angle sweep (max 89.9 to avoid pure grazing)
 
+  polarization: 'TE',
+};

@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect } from 'lucide-react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma } from 'lucide-react';
 import React, { useEffect } from 'react';
 
 interface InputFormProps {
@@ -30,6 +30,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
   const { control, watch, setValue, getValues, handleSubmit, formState: { errors, isSubmitting } } = form;
 
   const numLayers = watch('numLayers');
+  const sweepType = watch('sweepType');
 
   const { fields: thicknessFields, append: appendThickness, remove: removeThickness } = useFieldArray({
     control,
@@ -53,7 +54,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
-        appendThickness(getValues(`thickness.${i}`) ?? 100, { shouldFocus: false });
+        appendThickness(100, { shouldFocus: false }); // Default thickness 100nm
       }
     } else if (parsedNumLayers < currentThicknessLength) {
       for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
@@ -65,7 +66,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
         appendRefractiveIndex(
-          getValues(`refractiveIndex.${i}`) ?? { n: 1.0, k: 0.0 }, 
+          { n: 1.0, k: 0.0 }, // Default n=1, k=0
           { shouldFocus: false }
         );
       }
@@ -74,7 +75,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
         removeRefractiveIndex(i);
       }
     }
-  }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, getValues, setValue]);
+  }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, setValue]);
 
 
   const handleFormSubmit = async (data: SolverFormValues) => {
@@ -85,14 +86,40 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Layers size={24} /> Input Parameters</CardTitle>
-        <CardDescription>Define the multilayer stack, surrounding media, optical, and wavelength properties.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Sigma size={24} /> Input Parameters</CardTitle>
+        <CardDescription>Define the multilayer stack, surrounding media, optical, and sweep properties.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+            
+            <FormField
+              control={control}
+              name="sweepType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1"><Repeat size={16} />Calculation Sweep Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sweep type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="wavelength">Sweep Wavelength (fixed angle)</SelectItem>
+                      <SelectItem value="angle">Sweep Angle (fixed wavelength)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Choose whether to calculate response over a range of wavelengths or a range of angles.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Separator/>
 
-            <h3 className="text-base font-semibold flex items-center gap-2"><ArrowDownUp size={20}/>Surrounding Media</h3>
+            <h3 className="text-base font-semibold flex items-center gap-2"><ArrowDownUp size={16}/>Surrounding Media</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md shadow-sm bg-card/50">
                 <div>
                     <Label className="font-semibold text-sm mb-2 block">Incident Medium (Top)</Label>
@@ -102,7 +129,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             name="incidentMediumRefractiveIndex.n"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
+                                <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -115,7 +142,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             name="incidentMediumRefractiveIndex.k"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
+                                <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -133,7 +160,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             name="substrateMediumRefractiveIndex.n"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
+                                <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -146,7 +173,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             name="substrateMediumRefractiveIndex.k"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
+                                <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -159,29 +186,16 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             </div>
 
             <Separator />
-            <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={20}/>Stack & Optical Properties</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={16}/>Stack & Common Optical Properties</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Changed to 2 columns */}
               <FormField
                 control={control}
                 name="numLayers"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-1"><Layers size={16} />Number of Layers</FormLabel>
+                    <FormLabel className="flex items-center gap-1"><Layers size={14} />Number of Internal Layers</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={control}
-                name="angleOfIncidence"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1"><GitCommitHorizontal size={16} />Angle of Incidence (°)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                      <Input type="number" placeholder="e.g., 1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -192,7 +206,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                 name="polarization"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-1"><Waves size={16} />Polarization</FormLabel>
+                    <FormLabel className="flex items-center gap-1"><Waves size={14} />Polarization</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -200,8 +214,8 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="TE">TE (Transverse Electric)</SelectItem>
-                        <SelectItem value="TM">TM (Transverse Magnetic)</SelectItem>
+                        <SelectItem value="TE">TE (Transverse Electric / s-pol)</SelectItem>
+                        <SelectItem value="TM">TM (Transverse Magnetic / p-pol)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -209,37 +223,103 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                 )}
               />
             </div>
-
+            
             <Separator />
-            <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={20}/>Wavelength Range</h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                    control={control}
-                    name="minWavelength"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Min Wavelength (nm)</FormLabel>
-                        <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={control}
-                    name="maxWavelength"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Max Wavelength (nm)</FormLabel>
-                        <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-            </div>
+
+            {/* Conditional Sweep Parameter Inputs */}
+            {sweepType === 'wavelength' && (
+              <>
+                <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={16}/>Wavelength Sweep Parameters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField
+                        control={control}
+                        name="minWavelength"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Min Wavelength (nm)</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name="maxWavelength"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Max Wavelength (nm)</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name="angleOfIncidence"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-1"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+              </>
+            )}
+
+            {sweepType === 'angle' && (
+              <>
+                <h3 className="text-base font-semibold flex items-center gap-2"><GitCommitHorizontal size={16}/>Angle Sweep Parameters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField
+                        control={control}
+                        name="wavelength"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-1"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 500" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name="minAngle"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Min Angle of Incidence (°)</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name="maxAngle"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Max Angle of Incidence (°)</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+              </>
+            )}
 
 
             {numLayers > 0 && !isNaN(numLayers) && numLayers <= 10 && (
@@ -254,7 +334,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                       name={`thickness.${index}`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-1"><Ruler size={16} />Thickness (nm)</FormLabel>
+                          <FormLabel className="flex items-center gap-1"><Ruler size={14} />Thickness (nm)</FormLabel>
                           <FormControl>
                             <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
                             value={field.value ?? ''}
@@ -271,7 +351,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                         name={`refractiveIndex.${index}.n`}
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
+                            <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
                             <FormControl>
                                 <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
                                 value={field.value ?? ''}
@@ -287,7 +367,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                         name={`refractiveIndex.${index}.k`}
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel className="flex items-center gap-1"><Baseline size={16} />Extinction Coefficient (k)</FormLabel>
+                            <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
                             <FormControl>
                                 <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
                                 value={field.value ?? ''}

@@ -1,14 +1,12 @@
 
 'use client';
 
-import type { CalculationResults } from '@/types/solver';
+import type { CalculationResults, SweepParameter } from '@/types/solver';
 import OpticalChart from './optical-chart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// Button import removed
-import { Info, AlertTriangle } from 'lucide-react'; // Download icon removed
+import { Info, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-// html2canvas import removed
 import { useToast } from "@/hooks/use-toast";
 
 interface ResultsDisplayProps {
@@ -16,14 +14,11 @@ interface ResultsDisplayProps {
   isLoading: boolean;
 }
 
-// CHART_CONTAINER_ID constant removed
-
 export default function ResultsDisplay({ results, isLoading }: ResultsDisplayProps) {
   const { toast } = useToast();
   const aiFeedback = results?.aiFeedback;
   const opticalData = results?.data;
-
-  // handleDownloadChart function removed
+  const sweepParameter = results?.sweepParameter ?? 'wavelength'; // Default to wavelength if not present
 
   return (
     <Card className="w-full">
@@ -32,7 +27,6 @@ export default function ResultsDisplay({ results, isLoading }: ResultsDisplayPro
           <CardTitle>Results</CardTitle>
           <CardDescription>Calculated optical response and AI feedback.</CardDescription>
         </div>
-        {/* Download button removed */}
       </CardHeader>
       <CardContent className="space-y-6">
         {isLoading && (
@@ -53,7 +47,7 @@ export default function ResultsDisplay({ results, isLoading }: ResultsDisplayPro
           </Alert>
         )}
 
-        {!isLoading && opticalData && <OpticalChart data={opticalData} />} {/* chartId prop removed */}
+        {!isLoading && opticalData && <OpticalChart data={opticalData} sweepParameter={sweepParameter} />}
         
         {!isLoading && !opticalData && !aiFeedback && (
           <p className="text-muted-foreground text-center py-10">

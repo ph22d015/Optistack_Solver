@@ -4,7 +4,7 @@
 import React, { useState, useTransition } from 'react';
 import InputForm from '@/components/solver/input-form';
 import ResultsDisplay from '@/components/solver/results-display';
-import type { SolverFormValues, CalculationResults, AiFeedback } from '@/types/solver';
+import type { SolverFormValues, CalculationResults, AiFeedback, SweepParameter } from '@/types/solver';
 import { performAiValidation } from '@/app/actions';
 import { calculateOpticalResponse } from '@/lib/solver-calculations';
 import { useToast } from "@/hooks/use-toast";
@@ -23,24 +23,13 @@ export default function HomePage() {
 
     startTransition(async () => {
       try {
-        const aiValidationInput = {
-            incidentMediumRefractiveIndex: data.incidentMediumRefractiveIndex,
-            substrateMediumRefractiveIndex: data.substrateMediumRefractiveIndex,
-            numLayers: data.numLayers,
-            thickness: data.thickness.map(t => Number(t)),
-            refractiveIndex: data.refractiveIndex.map(ri => ({
-                n: Number(ri.n),
-                k: Number(ri.k)
-            })),
-            angleOfIncidence: Number(data.angleOfIncidence),
-            polarization: data.polarization,
-            minWavelength: Number(data.minWavelength),
-            maxWavelength: Number(data.maxWavelength),
-        };
-        const aiFeedback = await performAiValidation(aiValidationInput);
-
-        const opticalData = await calculateOpticalResponse(data);
-        setResults({ data: opticalData, aiFeedback });
+        // AI Validation input mapping is now direct as SolverFormValues matches ValidateInputParametersInput structure
+        const aiFeedback = await performAiValidation(data);
+        
+        // The calculateOpticalResponse now returns an object { data: OpticalResponsePoint[], sweepParameter: SweepParameter }
+        const calculationOutput = await calculateOpticalResponse(data);
+        
+        setResults({ data: calculationOutput.data, sweepParameter: calculationOutput.sweepParameter, aiFeedback });
 
         toast({
           title: "Calculation Complete",
@@ -53,7 +42,12 @@ export default function HomePage() {
           description: error instanceof Error ? error.message : "An unexpected error occurred during calculation.",
           variant: "destructive",
         });
-        setResults({ data: [], aiFeedback: { warnings: ["Calculation failed: " + (error instanceof Error ? error.message : String(error))], suggestions: [] } });
+        // Ensure sweepParameter is provided even on error for chart consistency
+        setResults({ 
+            data: [], 
+            sweepParameter: data.sweepType, // Use sweepType from form data as fallback
+            aiFeedback: { warnings: ["Calculation failed: " + (error instanceof Error ? error.message : String(error))], suggestions: [] } 
+        });
       } finally {
         setIsLoading(false);
       }
@@ -68,7 +62,7 @@ export default function HomePage() {
             Simulate Multilayer Optical Stacks
           </h2>
           <p className="mt-4 text-lg leading-8 text-foreground/80">
-            Define your optical stack parameters, including surrounding media, calculate its response, and visualize the results.
+            Define your optical stack parameters, calculate its response over wavelength or angle, and visualize the results.
             Our AI assistant helps prevent errors and suggests optimal configurations.
           </p>
         </div>
@@ -86,7 +80,7 @@ export default function HomePage() {
 
       <Separator />
 
-      <div className="space-y-8"> {/* Changed from grid to vertical stacking with space */}
+      <div className="space-y-8"> 
         <InputForm
           onSubmit={handleSubmit}
           isLoading={isLoading || isPending}

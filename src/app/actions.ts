@@ -3,23 +3,15 @@
 'use server';
 
 import { validateInputParameters as validateInputParamsFlow, ValidateInputParametersInput } from '@/ai/flows/validate-input-parameters';
-import type { AiFeedback, ComplexRefractiveIndexSchema as ComplexRI } from '@/types/solver'; // Renamed for clarity
+import type { AiFeedback, SolverFormValues } from '@/types/solver';
 
-// This function now takes a structure matching ValidateInputParametersInput
-export async function performAiValidation(data: {
-  incidentMediumRefractiveIndex: { n: number; k: number };
-  substrateMediumRefractiveIndex: { n: number; k: number };
-  numLayers: number;
-  thickness: number[];
-  refractiveIndex: { n: number; k: number }[];
-  angleOfIncidence: number;
-  polarization: 'TE' | 'TM';
-  minWavelength: number;
-  maxWavelength: number;
-}): Promise<AiFeedback> {
+// This function now takes a structure matching SolverFormValues
+export async function performAiValidation(data: SolverFormValues): Promise<AiFeedback> {
   try {
     // Construct the input for the AI flow, ensuring all values are numbers
+    // The schema in the AI flow handles optionality based on sweepType for validation logic.
     const aiInput: ValidateInputParametersInput = {
+      sweepType: data.sweepType,
       incidentMediumRefractiveIndex: {
         n: Number(data.incidentMediumRefractiveIndex.n),
         k: Number(data.incidentMediumRefractiveIndex.k),
@@ -34,10 +26,17 @@ export async function performAiValidation(data: {
         n: Number(ri.n),
         k: Number(ri.k),
       })),
-      angleOfIncidence: Number(data.angleOfIncidence),
       polarization: data.polarization,
-      minWavelength: Number(data.minWavelength),
-      maxWavelength: Number(data.maxWavelength),
+
+      // Wavelength sweep specific (pass them anyway, AI prompt will use based on sweepType)
+      minWavelength: data.minWavelength !== undefined ? Number(data.minWavelength) : undefined,
+      maxWavelength: data.maxWavelength !== undefined ? Number(data.maxWavelength) : undefined,
+      angleOfIncidence: data.angleOfIncidence !== undefined ? Number(data.angleOfIncidence) : undefined,
+
+      // Angle sweep specific (pass them anyway, AI prompt will use based on sweepType)
+      wavelength: data.wavelength !== undefined ? Number(data.wavelength) : undefined,
+      minAngle: data.minAngle !== undefined ? Number(data.minAngle) : undefined,
+      maxAngle: data.maxAngle !== undefined ? Number(data.maxAngle) : undefined,
     };
 
     console.log("Performing AI Validation with input:", aiInput);
@@ -50,4 +49,3 @@ export async function performAiValidation(data: {
     return { warnings: [`Error: ${errorMessage}`], suggestions: [] };
   }
 }
-
