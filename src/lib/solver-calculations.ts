@@ -30,14 +30,17 @@ function ccos(a: Complex): Complex {
   return complex(Math.cos(a.re) * Math.cosh(a.im), -Math.sin(a.re) * Math.sinh(a.im));
 }
 function csqrt(a: Complex): Complex {
+    // Principal square root: result has Re >= 0.
+    // If Im(a) >= 0, then Im(sqrt(a)) >= 0.
+    // If Im(a) < 0, then Im(sqrt(a)) <= 0.
+    // For passive media where Im(N_complex^2 - k_parallel_sq) >= 0, this ensures Im(n_eff_z) >=0.
     const r_abs = Math.sqrt(a.re * a.re + a.im * a.im);
     if (r_abs === 0) {
         return C_ZERO;
     }
-    // Principal square root: angle in (-pi/2, pi/2] for the result's argument
-    // This means re >= 0
-    let phi = Math.atan2(a.im, a.re);
+    let phi = Math.atan2(a.im, a.re); // angle in (-pi, pi]
     const sqrt_r_abs = Math.sqrt(r_abs);
+    // phi/2 will be in (-pi/2, pi/2], so cos(phi/2) >= 0
     return complex(sqrt_r_abs * Math.cos(phi / 2), sqrt_r_abs * Math.sin(phi / 2));
 }
 
@@ -78,13 +81,13 @@ export async function calculateOpticalResponse(
     return [];
   }
 
-  const N0_complex = complex(n0_raw.n, n0_raw.k < 0 ? 0 : n0_raw.k);
-  const NS_complex = complex(ns_raw.n, ns_raw.k < 0 ? 0 : ns_raw.k);
+  const N0_complex = complex(n0_raw.n, n0_raw.k); // k is non-negative from schema
+  const NS_complex = complex(ns_raw.n, ns_raw.k); // k is non-negative from schema
 
   const angleRad = angleDeg * PI / 180;
   
   // k_parallel_div_k_vac_sq = (n_incident_real * sin(theta_incident))^2
-  // This k_x component is conserved across all interfaces.
+  // This k_x component (squared, divided by k_vac^2) is conserved.
   // Use N0_complex.re for Snell's law as angle of incidence is defined in this medium.
   const k_parallel_div_k_vac_sq = N0_complex.re * N0_complex.re * Math.sin(angleRad) * Math.sin(angleRad);
 
@@ -95,35 +98,42 @@ export async function calculateOpticalResponse(
     let R_calc = 0, T_calc = 0, A_calc = 0;
     let calculationValid = true;
 
-    // Effective refractive index component normal to surface for incident medium
+    // Effective refractive index component normal to surface for incident medium (n_z0)
+    // n_z^2 = N^2 - k_parallel_div_k_vac_sq
+    // csqrt should return the physical root (Re >= 0, Im >= 0 for passive media)
     let n0_eff_z = csqrt(csub(cmul(N0_complex, N0_complex), complex(k_parallel_div_k_vac_sq)));
-    // Convention: For propagating waves, Re(n_eff_z) >= 0. For evanescent waves, Im(n_eff_z) >= 0 (decay in +z).
-    if (n0_eff_z.im < -FP_TOLERANCE) n0_eff_z = cmulReal(n0_eff_z, -1); 
-    if (Math.abs(n0_eff_z.im) < FP_TOLERANCE && n0_eff_z.re < -FP_TOLERANCE) n0_eff_z = cmulReal(n0_eff_z, -1);
-
-    let eta0_medium: Complex;
+    
+    let eta0_medium: Complex; // Optical admittance of incident medium
     if (polarization === 'TE') {
       eta0_medium = n0_eff_z;
     } else { // TM
-      if (cabsSq(N0_complex) < FP_TOLERANCE) { 
-           eta0_medium = complex(NaN, NaN); // Avoid division by zero if N0 is effectively zero
-      } else {
+      if (cabsSq(N0_complex) < FP_TOLERANCE && cabsSq(n0_eff_z) > FP_TOLERANCE ) { // N0 is effectively zero, eta is undefined or very large
+           eta0_medium = complex(NaN, NaN);
+      } else if (cabsSq(n0_eff_z) < FP_TOLERANCE && cabsSq(N0_complex) > FP_TOLERANCE ) { // n0_eff_z is zero (e.g. critical angle in lossless medium)
+           eta0_medium = complex(NaN, NaN); // Admittance would be infinite
+      } else if (cabsSq(n0_eff_z) < FP_TOLERANCE && cabsSq(N0_complex) < FP_TOLERANCE) {
+           eta0_medium = complex(1,0); // Or some other default, like free space
+      }
+      else {
            eta0_medium = cdiv(cmul(N0_complex, N0_complex), n0_eff_z);
       }
     }
     
-    // Effective refractive index component normal to surface for substrate medium
+    // Effective refractive index component normal to surface for substrate medium (n_zs)
     let ns_eff_z = csqrt(csub(cmul(NS_complex, NS_complex), complex(k_parallel_div_k_vac_sq)));
-    if (ns_eff_z.im < -FP_TOLERANCE) ns_eff_z = cmulReal(ns_eff_z, -1);
-    if (Math.abs(ns_eff_z.im) < FP_TOLERANCE && ns_eff_z.re < -FP_TOLERANCE) ns_eff_z = cmulReal(ns_eff_z, -1);
 
-    let etaS_medium: Complex;
+    let etaS_medium: Complex; // Optical admittance of substrate medium
     if (polarization === 'TE') {
       etaS_medium = ns_eff_z;
     } else { // TM
-       if (cabsSq(NS_complex) < FP_TOLERANCE) {
+       if (cabsSq(NS_complex) < FP_TOLERANCE && cabsSq(ns_eff_z) > FP_TOLERANCE) {
             etaS_medium = complex(NaN,NaN);
-       } else {
+       } else if (cabsSq(ns_eff_z) < FP_TOLERANCE && cabsSq(NS_complex) > FP_TOLERANCE) {
+            etaS_medium = complex(NaN,NaN);
+       } else if (cabsSq(ns_eff_z) < FP_TOLERANCE && cabsSq(NS_complex) < FP_TOLERANCE) {
+           etaS_medium = complex(1,0);
+       }
+       else {
             etaS_medium = cdiv(cmul(NS_complex, NS_complex), ns_eff_z);
        }
     }
@@ -131,47 +141,50 @@ export async function calculateOpticalResponse(
     if (isNaN(eta0_medium.re) || isNaN(eta0_medium.im) || isNaN(etaS_medium.re) || isNaN(etaS_medium.im)) {
         calculationValid = false;
     }
-     // Incident wave must be able to carry power for T, A to be meaningful beyond R=1
-    if (eta0_medium.re <= FP_TOLERANCE && calculationValid) {
+    // Incident wave must be able to carry power for T, A to be meaningful beyond R=1
+    if (calculationValid && eta0_medium.re <= FP_TOLERANCE) { // Check Re(eta0) for power propagation
         R_calc = 1; T_calc = 0; A_calc = 0;
         calculationValid = false; // No further calculation needed, it's total reflection or non-propagating incident.
     }
-
 
     let M_total: Matrix2x2C = [[C_ONE, C_ZERO], [C_ZERO, C_ONE]];
 
     if (calculationValid) {
         for (let l = 0; l < numLayers; l++) {
           const n_l_raw = layerRefractiveIndices[l];
-          const n_l_complex = complex(n_l_raw.n, n_l_raw.k < 0 ? 0 : n_l_raw.k);
+          const n_l_complex = complex(n_l_raw.n, n_l_raw.k); // k is non-negative
           const d_l_nm = thicknesses_nm[l];
 
+          // Effective refractive index component normal to surface for layer l (n_zl)
           let n_l_eff_z = csqrt(csub(cmul(n_l_complex, n_l_complex), complex(k_parallel_div_k_vac_sq)));
-          if (n_l_eff_z.im < -FP_TOLERANCE) n_l_eff_z = cmulReal(n_l_eff_z, -1);
-          if (Math.abs(n_l_eff_z.im) < FP_TOLERANCE && n_l_eff_z.re < -FP_TOLERANCE) n_l_eff_z = cmulReal(n_l_eff_z, -1);
-
-          let eta_l: Complex;
+          
+          let eta_l: Complex; // Optical admittance of layer l
           if (polarization === 'TE') {
             eta_l = n_l_eff_z;
           } else { // TM
-            if (cabsSq(n_l_complex) < FP_TOLERANCE || cabsSq(n_l_eff_z) < FP_TOLERANCE){ // Avoid division by zero if n_l_eff_z is zero
-                calculationValid = false; break;
+            if (cabsSq(n_l_complex) < FP_TOLERANCE && cabsSq(n_l_eff_z) > FP_TOLERANCE){
+                eta_l = complex(NaN, NaN);
+            } else if (cabsSq(n_l_eff_z) < FP_TOLERANCE && cabsSq(n_l_complex) > FP_TOLERANCE) {
+                eta_l = complex(NaN, NaN);
+            } else if (cabsSq(n_l_eff_z) < FP_TOLERANCE && cabsSq(n_l_complex) < FP_TOLERANCE) {
+                 eta_l = complex(1,0);
             }
-            eta_l = cdiv(cmul(n_l_complex, n_l_complex), n_l_eff_z);
+            else {
+                eta_l = cdiv(cmul(n_l_complex, n_l_complex), n_l_eff_z);
+            }
           }
 
           if (isNaN(eta_l.re) || isNaN(eta_l.im)) {
              calculationValid = false; break;
           }
 
-          const phaseFactor_k0_dl = (2 * PI / wavelength_nm) * d_l_nm; // k0 * d_l
-          const delta_l = cmulReal(n_l_eff_z, phaseFactor_k0_dl); // n_l_eff_z * k0 * d_l = k_z_l * d_l
+          const phaseFactor_k0_dl = (2 * PI / wavelength_nm) * d_l_nm; // k0_vacuum * d_l
+          const delta_l = cmulReal(n_l_eff_z, phaseFactor_k0_dl); // n_l_eff_z * k0_vacuum * d_l = k_z_l * d_l
 
           const cos_delta_l = ccos(delta_l);
           const sin_delta_l = csin(delta_l);
           
-          // M_l = [[cos(delta_l), i*sin(delta_l)/eta_l], [i*eta_l*sin(delta_l), cos(delta_l)]]
-          if (cabsSq(eta_l) < FP_TOLERANCE && cabsSq(sin_delta_l) > FP_TOLERANCE) { 
+          if (cabsSq(eta_l) < FP_TOLERANCE && cabsSq(sin_delta_l) > FP_TOLERANCE * FP_TOLERANCE) { // Avoid division by zero if eta_l is zero and sin_delta_l is not
               calculationValid = false; break;
           }
           const M01_term = cmul(C_I, cdiv(sin_delta_l, eta_l)); 
@@ -182,7 +195,9 @@ export async function calculateOpticalResponse(
             [M10_term, cos_delta_l]
           ];
 
-          if (isNaN(M_l[0][0].re) || isNaN(M_l[0][1].re) || isNaN(M_l[1][0].re) || isNaN(M_l[1][1].re) ) {
+          if (isNaN(M_l[0][0].re) || isNaN(M_l[0][1].re) || isNaN(M_l[1][0].re) || isNaN(M_l[1][1].re) ||
+              isNaN(M_l[0][0].im) || isNaN(M_l[0][1].im) || isNaN(M_l[1][0].im) || isNaN(M_l[1][1].im) 
+            ) {
                calculationValid = false; break;
           }
           M_total = mmul2x2c(M_total, M_l);
@@ -195,24 +210,21 @@ export async function calculateOpticalResponse(
         const M21 = M_total[1][0];
         const M22 = M_total[1][1];
 
-        // Reflection coefficient r = num_r / den_rt
-        // Transmission coefficient t = 2*eta0 / den_rt
-        // num_r = (eta0*M11 + eta0*etaS*M12) - (M21 + etaS*M22)
-        // den_rt = (eta0*M11 + eta0*etaS*M12) + (M21 + etaS*M22)
         const term_eta0_M11 = cmul(eta0_medium, M11);
         const term_eta0_etaS_M12 = cmul(cmul(eta0_medium, etaS_medium), M12);
-        const term_M21 = M21;
         const term_etaS_M22 = cmul(etaS_medium, M22);
 
         const num_r_part1 = cadd(term_eta0_M11, term_eta0_etaS_M12);
-        const num_r_part2 = cadd(term_M21, term_etaS_M22);
+        const num_r_part2 = cadd(M21, term_etaS_M22);
 
         const num_r_complex = csub(num_r_part1, num_r_part2);
         const den_rt_complex = cadd(num_r_part1, num_r_part2);
 
-        if (cabsSq(den_rt_complex) > FP_TOLERANCE * FP_TOLERANCE) { // Check against squared tolerance for denominator magnitude
+        let R_raw = 0, T_raw_power = 0;
+
+        if (cabsSq(den_rt_complex) > FP_TOLERANCE * FP_TOLERANCE) {
             const r_complex = cdiv(num_r_complex, den_rt_complex);
-            let R_raw = cabsSq(r_complex);
+            R_raw = cabsSq(r_complex);
             if (isNaN(R_raw)) R_raw = 0; 
 
             const t_field_complex = cdiv(cmulReal(eta0_medium, 2), den_rt_complex);
@@ -221,46 +233,54 @@ export async function calculateOpticalResponse(
 
             let power_transfer_ratio = 0.0;
             // eta0_medium.re should be > FP_TOLERANCE (checked earlier)
-            if (etaS_medium.re > FP_TOLERANCE) { // Power can propagate into substrate
+            // Power can only be transmitted if substrate medium can propagate it (etaS_medium.re > 0)
+            if (etaS_medium.re > FP_TOLERANCE) { 
                 power_transfer_ratio = etaS_medium.re / eta0_medium.re;
             }
             
-            let T_raw_power = power_transfer_ratio * T_raw_field_sq;
+            T_raw_power = power_transfer_ratio * T_raw_field_sq;
             if (isNaN(T_raw_power)) T_raw_power = 0;
 
-            // Apply physical constraints R, T in [0,1] and R+T <= 1
-            R_calc = Math.max(0.0, Math.min(1.0, R_raw));
-            T_calc = Math.max(0.0, Math.min(1.0, T_raw_power));
-            
-            if (R_calc + T_calc > 1.0 + FP_TOLERANCE) {
-                 // If R is already 1 (or very close), T must be 0.
-                if (R_calc >= 1.0 - FP_TOLERANCE) {
-                    R_calc = 1.0;
-                    T_calc = 0.0;
-                } else {
-                    // Otherwise, R < 1 but R+T > 1. Reduce T to make R+T = 1 (so A=0).
-                    T_calc = 1.0 - R_calc;
-                }
-            }
-            
-            A_calc = 1.0 - R_calc - T_calc;
-            // Final clamp for A to handle tiny negative values from precision errors.
-            A_calc = Math.max(0.0, Math.min(1.0, A_calc));
-
         } else { // Denominator is zero (or numerically very close)
-            R_calc = 1; // System shows total reflection (e.g. perfect conductor, or resonance)
-            T_calc = 0;
-            A_calc = 0;
+            R_raw = 1; // System shows total reflection (e.g. perfect conductor, or resonance)
+            T_raw_power = 0;
         }
+
+        // Finalize R, T, A ensuring energy conservation
+        R_calc = Math.max(0.0, Math.min(1.0, R_raw));
+        T_calc = Math.max(0.0, Math.min(1.0, T_raw_power));
+
+        // If R+T > 1 due to numerical issues, adjust.
+        // Prioritize R. If R is already ~1, T must be 0. Otherwise, adjust T.
+        if (R_calc + T_calc > 1.0 + FP_TOLERANCE) {
+            if (R_calc >= 1.0 - FP_TOLERANCE) {
+                R_calc = 1.0; // Ensure it's exactly 1
+                T_calc = 0.0;
+            } else {
+                // R_calc < 1, but R_calc + T_calc > 1. Reduce T_calc.
+                T_calc = 1.0 - R_calc;
+            }
+        }
+        
+        A_calc = 1.0 - R_calc - T_calc;
+        // Final clamp for A to handle tiny negative values from precision errors.
+        A_calc = Math.max(0.0, Math.min(1.0, A_calc));
+        // And re-ensure T and R are not made negative by A calculation if sum was slightly > 1
+        T_calc = Math.max(0.0, T_calc);
+        R_calc = Math.max(0.0, R_calc);
+
+
+    } else if (!calculationValid && !(R_calc === 1 && T_calc === 0 && A_calc === 0) ) { 
+      // If calculation became invalid mid-loop and R,T,A not already set by eta0.re<=0 condition
+      R_calc = NaN; T_calc = NaN; A_calc = NaN; // Indicate error in this point
     }
-    // If !calculationValid initially (e.g. eta0_medium.re <=0 or invalid eta0/etaS), R,T,A already set.
-    // If calculation became invalid during loop, R,T,A remain 0,0,0 which is a safe default.
+
 
     results.push({
       wavelength: wavelength_nm,
-      reflectance: R_calc,
-      transmittance: T_calc,
-      absorptance: A_calc,
+      reflectance: isNaN(R_calc) ? 0 : R_calc, // Plot 0 for NaN values
+      transmittance: isNaN(T_calc) ? 0 : T_calc,
+      absorptance: isNaN(A_calc) ? 0 : A_calc,
     });
   }
   return results;
