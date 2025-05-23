@@ -63,10 +63,10 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               accessibilityLayer
               data={data}
               margin={{
-                top: 35, 
+                top: 60, // Increased top margin for legend
                 right: 30,
                 left: 20,
-                bottom: 50, // Increased bottom margin
+                bottom: 50, // Keep bottom margin for X-axis label
               }}
             >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -79,7 +79,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
                 axisLine={true}
                 tickMargin={8}
                 domain={['dataMin', 'dataMax']}
-                label={{ value: chartConfig.wavelength.label, position: 'bottom', offset: 10 }} // Changed position and offset
+                label={{ value: chartConfig.wavelength.label, position: 'bottom', offset: 10 }}
               />
               <YAxis
                 type="number"
@@ -96,18 +96,20 @@ export default function OpticalChart({ data }: OpticalChartProps) {
                 content={
                   <ChartTooltipContent 
                     indicator="line" 
-                    nameKey="name" 
                     labelFormatter={(wavelengthValue) => {
                       if (typeof wavelengthValue === 'number') {
                         return `Wavelength: ${wavelengthValue.toFixed(2)} nm`;
                       }
-                      // Fallback for other types, though wavelength should always be number here
                       return `Wavelength: ${String(wavelengthValue)} nm`; 
                     }}
                   />
                 }
               />
-              <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
+              <ChartLegend
+                verticalAlign="top" // Position legend container at the top
+                align="center"      // Center legend items horizontally
+                content={<ChartLegendContent />} // Pass content renderer, removing specific align/height from it
+              />
               <Line
                 dataKey="reflectance"
                 type="natural"
