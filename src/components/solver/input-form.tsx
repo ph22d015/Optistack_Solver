@@ -92,10 +92,10 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
         <Form {...form}>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
 
-            <h3 className="text-lg font-medium flex items-center gap-2"><ArrowDownUp size={20}/>Surrounding Media</h3>
+            <h3 className="text-base font-semibold flex items-center gap-2"><ArrowDownUp size={20}/>Surrounding Media</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md shadow-sm bg-card/50">
                 <div>
-                    <Label className="font-semibold text-md mb-2 block">Incident Medium (Top)</Label>
+                    <Label className="font-semibold text-sm mb-2 block">Incident Medium (Top)</Label>
                     <div className="space-y-3">
                         <FormField
                             control={control}
@@ -126,7 +126,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                     </div>
                 </div>
                  <div>
-                    <Label className="font-semibold text-md mb-2 block">Substrate Medium (Bottom)</Label>
+                    <Label className="font-semibold text-sm mb-2 block">Substrate Medium (Bottom)</Label>
                      <div className="space-y-3">
                         <FormField
                             control={control}
@@ -159,7 +159,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             </div>
 
             <Separator />
-            <h3 className="text-lg font-medium flex items-center gap-2"><BoxSelect size={20}/>Stack & Optical Properties</h3>
+            <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={20}/>Stack & Optical Properties</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={control}
@@ -211,7 +211,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             </div>
 
             <Separator />
-            <h3 className="text-lg font-medium flex items-center gap-2"><ScanLine size={20}/>Wavelength Range</h3>
+            <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={20}/>Wavelength Range</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                     control={control}
@@ -245,10 +245,10 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
             {numLayers > 0 && !isNaN(numLayers) && numLayers <= 10 && (
               <>
                 <Separator className="my-6" />
-                <h3 className="text-lg font-medium mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
+                <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
                 {Array.from({ length: numLayers }).map((_, index) => (
                   <div key={index} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
-                    <h4 className="font-semibold text-md text-primary">Layer {index + 1}</h4>
+                    <h4 className="font-semibold text-sm text-primary">Layer {index + 1}</h4>
                     <FormField
                       control={control}
                       name={`thickness.${index}`}
