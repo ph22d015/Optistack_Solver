@@ -86,16 +86,12 @@ export default function HomePage() {
 
       <Separator />
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-        <div className="lg:col-span-3"> {/* Changed from lg:col-span-2 */}
-          <InputForm
-            onSubmit={handleSubmit}
-            isLoading={isLoading || isPending}
-          />
-        </div>
-        <div className="lg:col-span-2"> {/* Changed from lg:col-span-3 */}
-          <ResultsDisplay results={results} isLoading={isLoading || isPending} />
-        </div>
+      <div className="space-y-8"> {/* Changed from grid to vertical stacking with space */}
+        <InputForm
+          onSubmit={handleSubmit}
+          isLoading={isLoading || isPending}
+        />
+        <ResultsDisplay results={results} isLoading={isLoading || isPending} />
       </div>
     </div>
   );
