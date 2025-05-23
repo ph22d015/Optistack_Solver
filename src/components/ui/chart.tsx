@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -121,8 +122,8 @@ const ChartTooltipContent = React.forwardRef<
       indicator = "dot",
       hideLabel = false,
       hideIndicator = false,
-      label,
-      labelFormatter,
+      label, // This 'label' is the x-axis value from Recharts
+      labelFormatter, // User-provided formatter
       labelClassName,
       formatter,
       color,
@@ -134,40 +135,32 @@ const ChartTooltipContent = React.forwardRef<
     const { config } = useChart()
 
     const tooltipLabel = React.useMemo(() => {
+      // If hideLabel is true, or no payload (tooltip shouldn't be active), return null.
       if (hideLabel || !payload?.length) {
-        return null
+        return null;
       }
 
-      const [item] = payload
-      const key = `${labelKey || item.dataKey || item.name || "value"}`
-      const itemConfig = getPayloadConfigFromPayload(config, item, key)
-      const value =
-        !labelKey && typeof label === "string"
-          ? config[label as keyof typeof config]?.label || label
-          : itemConfig?.label
-
-      if (labelFormatter) {
+      // 'label' is the x-axis value (e.g., wavelength) passed by Recharts to its custom tooltip.
+      // If a labelFormatter is provided by the user of ChartTooltipContent, use it.
+      if (labelFormatter && typeof label !== 'undefined') {
         return (
           <div className={cn("font-medium", labelClassName)}>
-            {labelFormatter(value, payload)}
+            {/* Call the provided labelFormatter with the Recharts label (x-axis value) and payload. */}
+            {labelFormatter(label, payload)}
           </div>
-        )
+        );
       }
 
-      if (!value) {
-        return null
+      // Fallback: If no labelFormatter is provided, but we have a label (x-axis value),
+      // display it. This provides a sensible default if the component user doesn't customize.
+      if (typeof label !== 'undefined') {
+        const defaultFormattedLabel = typeof label === 'number' ? label.toFixed(2) : String(label);
+        return <div className={cn("font-medium", labelClassName)}>{defaultFormattedLabel}</div>;
       }
 
-      return <div className={cn("font-medium", labelClassName)}>{value}</div>
-    }, [
-      label,
-      labelFormatter,
-      payload,
-      hideLabel,
-      labelClassName,
-      config,
-      labelKey,
-    ])
+      return null;
+    }, [label, labelFormatter, payload, hideLabel, labelClassName, config]); // Added config to dependency array
+
 
     if (!active || !payload?.length) {
       return null
@@ -240,7 +233,8 @@ const ChartTooltipContent = React.forwardRef<
                       </div>
                       {item.value && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
-                          {item.value.toLocaleString()}
+                          {/* Ensure value is a number before calling toLocaleString or toFixed */}
+                          {typeof item.value === 'number' ? item.value.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits: 3}) : String(item.value)}
                         </span>
                       )}
                     </div>
@@ -363,3 +357,4 @@ export {
   ChartLegendContent,
   ChartStyle,
 }
+
