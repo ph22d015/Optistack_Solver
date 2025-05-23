@@ -10,7 +10,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, Legend } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"; // Removed Legend import as ChartLegend is used
 
 interface OpticalChartProps {
   data: OpticalResponsePoint[];
@@ -19,15 +19,15 @@ interface OpticalChartProps {
 const chartConfig = {
   reflectance: {
     label: "Reflectance (R)",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(0 70% 60%)", // Red
   },
   transmittance: {
     label: "Transmittance (T)",
-    color: "hsl(var(--chart-2))",
+    color: "hsl(120 60% 50%)", // Green
   },
   absorptance: {
     label: "Absorptance (A)",
-    color: "hsl(var(--chart-3))", // Using chart-3 for absorptance
+    color: "hsl(220 70% 60%)", // Blue
   },
   wavelength: {
     label: "Wavelength (nm)",
@@ -60,17 +60,17 @@ export default function OpticalChart({ data }: OpticalChartProps) {
             accessibilityLayer
             data={data}
             margin={{
-              top: 20, // Increased top margin for legend if placed above
-              right: 30, // Increased right margin for labels
-              left: 20,  // Increased left margin for Y-axis labels
-              bottom: 20, // Increased bottom margin for X-axis labels and legend
+              top: 20, 
+              right: 30, 
+              left: 20,  
+              bottom: 20, 
             }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
               dataKey="wavelength"
               type="number"
-              name={chartConfig.wavelength.label}
+              name={chartConfig.wavelength.label} // Name prop helps identify this axis in tooltip
               unit="nm"
               tickLine={false}
               axisLine={true}
@@ -80,7 +80,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
             />
             <YAxis
               type="number"
-              name="Intensity"
+              name="Intensity" // General name for Y-axis values
               tickLine={false}
               axisLine={true}
               tickMargin={8}
@@ -90,7 +90,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
             />
             <ChartTooltip
               cursor={true}
-              content={<ChartTooltipContent indicator="line" />}
+              content={<ChartTooltipContent indicator="line" />} // This content component should show wavelength
             />
             <ChartLegend content={<ChartLegendContent verticalAlign="top" height={50} />} />
             <Line
@@ -100,7 +100,6 @@ export default function OpticalChart({ data }: OpticalChartProps) {
               strokeWidth={2}
               dot={false}
               name={chartConfig.reflectance.label}
-              
             />
             <Line
               dataKey="transmittance"
@@ -124,4 +123,3 @@ export default function OpticalChart({ data }: OpticalChartProps) {
     </Card>
   );
 }
-
