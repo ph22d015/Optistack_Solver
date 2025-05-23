@@ -66,7 +66,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
                 top: 35, 
                 right: 30,
                 left: 20,
-                bottom: 35, // Increased bottom margin
+                bottom: 50, // Increased bottom margin
               }}
             >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -79,7 +79,7 @@ export default function OpticalChart({ data }: OpticalChartProps) {
                 axisLine={true}
                 tickMargin={8}
                 domain={['dataMin', 'dataMax']}
-                label={{ value: chartConfig.wavelength.label, position: 'insideBottom', offset: -20 }} // Adjusted offset for label
+                label={{ value: chartConfig.wavelength.label, position: 'bottom', offset: 10 }} // Changed position and offset
               />
               <YAxis
                 type="number"
@@ -97,11 +97,12 @@ export default function OpticalChart({ data }: OpticalChartProps) {
                   <ChartTooltipContent 
                     indicator="line" 
                     nameKey="name" 
-                    labelFormatter={(_label, payload) => {
-                      if (payload && payload.length > 0 && payload[0].payload) {
-                        return `Wavelength: ${payload[0].payload.wavelength.toFixed(2)} nm`;
+                    labelFormatter={(wavelengthValue) => {
+                      if (typeof wavelengthValue === 'number') {
+                        return `Wavelength: ${wavelengthValue.toFixed(2)} nm`;
                       }
-                      return "";
+                      // Fallback for other types, though wavelength should always be number here
+                      return `Wavelength: ${String(wavelengthValue)} nm`; 
                     }}
                   />
                 }
