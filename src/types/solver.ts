@@ -6,10 +6,10 @@ export const LayerParamSchema = z.object({
 });
 
 export const ComplexRefractiveIndexSchema = z.object({
-  n: z.coerce.number().min(1.0, "n must be >= 1.0 (or >=0 for k>0)").describe("Real part of refractive index"),
+  n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"), // n can be < 1 for metals, >= 0
   k: z.coerce.number().min(0, "k must be non-negative").describe("Extinction coefficient (imaginary part)"),
-}).refine(data => data.n >= 0 || data.k == 0, { // n can be < 1 for metals if k > 0, but for dielectrics n usually >=1
-    message: "If k > 0, n can be < 1. Otherwise n should be >= 1.0.",
+}).refine(data => data.n >= 1.0 || data.k > 0, {
+    message: "If k is 0 (or very small), n should generally be >= 1.0. For k > 0 (absorbing media/metals), n can be < 1.",
     path: ["n"],
 });
 
@@ -17,13 +17,13 @@ export const ComplexRefractiveIndexSchema = z.object({
 export const SolverFormSchema = z.object({
   incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the incident medium"),
   substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the substrate medium"),
-  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(10, "Max 10 layers for demo"), // Min 0 layers if incident/substrate are defined
-  thickness: z.array(z.coerce.number().min(0.1, "Thickness > 0 nm")).describe("Layer thicknesses in nm"),
+  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(10, "Max 10 layers for demo"),
+  thickness: z.array(z.coerce.number().min(0.1, "Thickness must be > 0 nm")).describe("Layer thicknesses in nm"),
   refractiveIndex: z.array(ComplexRefractiveIndexSchema).describe("Layer complex refractive indices"),
-  angleOfIncidence: z.coerce.number().min(0, "Angle: 0-90°").max(90, "Angle: 0-90°").describe("Angle of incidence in degrees"),
+  angleOfIncidence: z.coerce.number().min(0, "Angle must be 0-90°").max(90, "Angle must be 0-90°").describe("Angle of incidence in degrees"),
   polarization: z.enum(['TE', 'TM'], { required_error: "Polarization is required" }).describe("Polarization of light"),
-  minWavelength: z.coerce.number().min(1, "Min wavelength > 0 nm").default(400),
-  maxWavelength: z.coerce.number().min(1, "Max wavelength > 0 nm").default(700),
+  minWavelength: z.coerce.number().min(1, "Min wavelength must be > 0 nm").default(400),
+  maxWavelength: z.coerce.number().min(1, "Max wavelength must be > 0 nm").default(700),
 }).refine(data => data.thickness.length === data.numLayers, {
   message: "Thickness entries must match number of layers.",
   path: ["numLayers"],
@@ -57,17 +57,13 @@ export interface CalculationResults {
 }
 
 export const defaultSolverFormValues: SolverFormValues = {
-  incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air/Vacuum
-  substrateMediumRefractiveIndex: { n: 1.5, k: 0.0 }, // Typical Glass
-  numLayers: 2,
-  thickness: [100, 100],
-  refractiveIndex: [
-    { n: 1.5, k: 0 },
-    { n: 2.0, k: 0.01 },
-  ],
+  incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air
+  substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 }, // Air
+  numLayers: 0,
+  thickness: [],
+  refractiveIndex: [],
   angleOfIncidence: 0,
   polarization: 'TE',
   minWavelength: 400,
   maxWavelength: 700,
 };
-

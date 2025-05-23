@@ -14,13 +14,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect } from 'lucide-react';
 import React, { useEffect } from 'react';
-// Removed Alert related imports as AI feedback is no longer shown directly here
 
 interface InputFormProps {
   onSubmit: (data: SolverFormValues) => void;
-  // onValidate is removed as AI validation is now handled post-submission
   isLoading: boolean;
-  // initialAiFeedback is removed
 }
 
 export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
@@ -43,8 +40,6 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     control,
     name: 'refractiveIndex',
   });
-
-  // Removed local aiFeedback state
 
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
@@ -70,7 +65,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
         appendRefractiveIndex(
-          getValues(`refractiveIndex.${i}`) ?? { n: 1.5, k: 0 },
+          getValues(`refractiveIndex.${i}`) ?? { n: 1.0, k: 0.0 }, // Default new layer RI to n=1, k=0
           { shouldFocus: false }
         );
       }
@@ -83,7 +78,6 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
 
 
   const handleFormSubmit = async (data: SolverFormValues) => {
-    // AI validation is now handled by the parent page component after this onSubmit call
     onSubmit(data);
   };
 
@@ -141,7 +135,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormItem>
                                 <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
                                 <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -174,7 +168,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                   <FormItem>
                     <FormLabel className="flex items-center gap-1"><Layers size={16} />Number of Layers</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 2" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
+                      <Input type="number" placeholder="e.g., 0" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -278,7 +272,7 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                             <FormItem>
                             <FormLabel className="flex items-center gap-1"><Gem size={16} />Refractive Index (n)</FormLabel>
                             <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.5" {...field}
+                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
                                 onChange={e => field.onChange(parseFloat(e.target.value))}
                                 />
                             </FormControl>
@@ -306,8 +300,6 @@ export default function InputForm({ onSubmit, isLoading }: InputFormProps) {
                 ))}
               </>
             )}
-
-            {/* AI Feedback Alert removed from here */}
 
             <Button type="submit" disabled={isLoading || isSubmitting} className="w-full md:w-auto mt-6">
               <Calculator size={18} className="mr-2" />
