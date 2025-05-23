@@ -14,7 +14,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 interface OpticalChartProps {
   data: OpticalResponsePoint[];
-  chartId?: string; 
+  // chartId prop removed
 }
 
 const chartConfig = {
@@ -35,7 +35,7 @@ const chartConfig = {
   }
 };
 
-export default function OpticalChart({ data, chartId = "optical-response-chart-container" }: OpticalChartProps) {
+export default function OpticalChart({ data }: OpticalChartProps) { // chartId prop removed from destructuring
   if (!data || data.length === 0) {
     return (
       <Card className="shadow-md">
@@ -56,9 +56,9 @@ export default function OpticalChart({ data, chartId = "optical-response-chart-c
         <CardDescription>Reflectance, Transmittance, and Absorptance vs. Wavelength</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Apply ID and styling for html2canvas to a wrapper DIV */}
+        {/* Apply styling for visual appearance to a wrapper DIV, id removed */}
         <div 
-          id={chartId} // ID for html2canvas to target
+          // id attribute removed
           className="min-h-[400px] w-full aspect-video bg-card p-4 rounded-md" 
         >
           <ChartContainer
