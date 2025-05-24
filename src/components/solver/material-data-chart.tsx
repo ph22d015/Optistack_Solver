@@ -17,14 +17,15 @@ interface MaterialDataChartProps {
   materialName: string;
 }
 
+// Chart config is still useful for labels and future styling if CSS variables work later
 const chartConfig = {
   n: {
     label: "Refractive Index (n)",
-    color: "hsl(var(--chart-1))", // Typically blueish
+    // color: "hsl(var(--chart-1))", // Original color using CSS var
   },
   k: {
     label: "Extinction Coefficient (k)",
-    color: "hsl(var(--chart-2))", // Typically greenish or reddish
+    // color: "hsl(var(--chart-2))", // Original color using CSS var
   },
   wavelength: {
     label: "Wavelength (nm)",
@@ -45,11 +46,10 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
     Math.max(...data.map(p => p.n)) + 0.1,
   ];
   const yDomainK = [
-    Math.min(...data.map(p => p.k)) - 0.01, // k values are often small
+    Math.min(...data.map(p => p.k)) - 0.01,
     Math.max(...data.map(p => p.k)) + 0.01,
   ];
 
-  // Ensure domain min is not greater than domain max
   if (yDomainN[0] >= yDomainN[1]) yDomainN[1] = yDomainN[0] + 0.2;
   if (yDomainK[0] >= yDomainK[1]) yDomainK[1] = yDomainK[0] + 0.02;
 
@@ -62,7 +62,7 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
             data={data}
             margin={{
               top: 20,
-              right: 40, // Increased right margin for YAxis label
+              right: 40,
               left: 20,
               bottom: 40,
             }}
@@ -88,10 +88,10 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
               tickLine={false}
               axisLine={true}
               tickMargin={8}
-              domain={yDomainN as [number, number]} // Ensure domain is appropriate for n
+              domain={yDomainN as [number, number]}
               tickFormatter={(value) => typeof value === 'number' ? value.toFixed(2) : value}
               label={{ value: chartConfig.n.label, angle: -90, position: 'insideLeft', offset: -5 }}
-              stroke={chartConfig.n.color}
+              stroke="blue" // Hardcoded color for 'n' line
             />
             <YAxis
               yAxisId="right"
@@ -102,10 +102,10 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
               tickLine={false}
               axisLine={true}
               tickMargin={8}
-              domain={yDomainK as [number, number]} // Ensure domain is appropriate for k
+              domain={yDomainK as [number, number]}
               tickFormatter={(value) => typeof value === 'number' ? value.toFixed(3) : value}
               label={{ value: chartConfig.k.label, angle: -90, position: 'insideRight', offset: -15 }}
-              stroke={chartConfig.k.color}
+              stroke="green" // Hardcoded color for 'k' line
             />
             <ChartTooltip
               cursor={true}
@@ -130,7 +130,7 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
               yAxisId="left"
               dataKey="n"
               type="monotone"
-              stroke={chartConfig.n.color}
+              stroke="blue" // Hardcoded color for 'n' line
               strokeWidth={2}
               dot={false}
               name={chartConfig.n.label}
@@ -139,7 +139,7 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
               yAxisId="right"
               dataKey="k"
               type="monotone"
-              stroke={chartConfig.k.color}
+              stroke="green" // Hardcoded color for 'k' line
               strokeWidth={2}
               dot={false}
               name={chartConfig.k.label}
