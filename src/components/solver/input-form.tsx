@@ -12,10 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, BarChartHorizontalBig } from 'lucide-react';
-import React, { useEffect, type RefObject, useRef } from 'react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, BarChartHorizontalBig, Eye } from 'lucide-react';
+import React, { useEffect, type RefObject, useRef, useState } from 'react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import MaterialDataChart from './material-data-chart';
+
 
 interface InputFormProps {
   onSubmit: (data: SolverFormValues) => void;
@@ -24,7 +27,7 @@ interface InputFormProps {
   recaptchaSiteKey: string;
 }
 
-const DEFAULT_DISPERSIVE_POINTS_COUNT = 2;
+const DEFAULT_DISPERSIVE_POINTS_COUNT = 2; // Show table if <= this many points
 
 export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }: InputFormProps) {
   const form = useForm<SolverFormValues>({
@@ -34,6 +37,10 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   });
   const { toast } = useToast();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  const [isMaterialPlotDialogOpen, setIsMaterialPlotDialogOpen] = useState(false);
+  const [plottingMaterialData, setPlottingMaterialData] = useState<DispersiveDataPoint[] | null>(null);
+  const [plottingMaterialName, setPlottingMaterialName] = useState<string | null>(null);
 
 
   const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting, errors } } = form;
@@ -99,6 +106,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             ...material,
             properties: {
               ...material.properties,
+              // Ensure data is sorted by wavelength before submission
               data: [...material.properties.data].sort((a, b) => a.wavelength - b.wavelength),
             }
           };
@@ -116,7 +124,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     if (newType === 'constant' && currentProperties.type !== 'constant') {
       setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesConstant, materialName: currentMaterialName });
     } else if (newType === 'dispersive' && currentProperties.type !== 'dispersive') {
-      // Ensure default data is set when switching to dispersive
       setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesDispersive, materialName: currentProperties.materialName || currentMaterialName });
     }
   };
@@ -141,8 +148,8 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   };
   
   const clearAndEditManually = (libraryMaterialIndex: number) => {
-    setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, [...defaultLayerMaterialPropertiesDispersive.data]);
-    toast({ title: "Data Cleared", description: "Dispersive data cleared. You can now edit manually or upload a new file."});
+    setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, [...defaultLayerMaterialPropertiesDispersive.data]); // Reset to default 2 points
+    toast({ title: "Data Cleared", description: "Dispersive data reset to default. You can now edit manually or upload a new file."});
   };
 
   const handleFileUploadForLibraryMaterial = async (event: React.ChangeEvent<HTMLInputElement>, libraryMaterialIndex: number) => {
@@ -160,8 +167,8 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       const lines = text.split(/\r\n|\n/);
       lines.forEach(line => {
         const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) return; // Skip comments and empty lines
-        const parts = trimmedLine.split(/[\s,;\t]+/); // Split by space, comma, semicolon, or tab
+        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) return; 
+        const parts = trimmedLine.split(/[\s,;\t]+/); 
         if (parts.length === 3) {
           const wavelength = parseFloat(parts[0]);
           const n = parseFloat(parts[1]);
@@ -173,9 +180,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       });
 
       if (points.length < 2) {
-        toast({ title: "Insufficient Data", description: "At least two data points are required for interpolation. File parsing might have failed or data is insufficient.", variant: "destructive"});
-        // Optionally reset to default if upload fails validation
-        // setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, [...defaultLayerMaterialPropertiesDispersive.data]);
+        toast({ title: "Insufficient Data", description: "At least two data points are required. File parsing might have failed or data is insufficient.", variant: "destructive"});
         return;
       }
       points.sort((a, b) => a.wavelength - b.wavelength);
@@ -185,11 +190,23 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     };
     reader.onerror = () => toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
     reader.readAsText(file);
-    if(event.target) event.target.value = ''; // Reset file input
+    if(event.target) event.target.value = ''; 
+  };
+  
+  const handlePlotData = (libraryMaterialIndex: number) => {
+    const material = watch(`materialLibrary.${libraryMaterialIndex}`);
+    if (material && material.properties.type === 'dispersive' && material.properties.data) {
+      setPlottingMaterialData(material.properties.data);
+      setPlottingMaterialName(material.name);
+      setIsMaterialPlotDialogOpen(true);
+    } else {
+      toast({ title: "No Data to Plot", description: "Dispersive data is not available for this material.", variant: "default"});
+    }
   };
 
 
   return (
+    <>
     <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-2xl mb-2"><Sigma size={24} /> Input Parameters</CardTitle>
@@ -212,7 +229,8 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 {libraryMaterialFields.map((libraryField, libIndex) => {
                     const currentMaterialProperties = watch(`materialLibrary.${libIndex}.properties`);
                     const dispersiveDataPoints = currentMaterialProperties.type === 'dispersive' ? currentMaterialProperties.data : [];
-                    const showDispersiveTable = currentMaterialProperties.type === 'dispersive' && (!dispersiveDataPoints || dispersiveDataPoints.length <= DEFAULT_DISPERSIVE_POINTS_COUNT);
+                    // Show table if dispersive and <= 2 points, or not dispersive (always show n/k for constant)
+                    const showDispersiveTableInputs = currentMaterialProperties.type === 'dispersive' && (!dispersiveDataPoints || dispersiveDataPoints.length <= DEFAULT_DISPERSIVE_POINTS_COUNT);
 
                     return (
                     <Card key={libraryField.id} className="p-4 bg-background/30">
@@ -223,7 +241,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             render={({ field }) => (
                                 <FormItem className="flex-grow mr-2">
                                 <FormLabel className="text-sm font-medium">Material Name</FormLabel>
-                                <FormControl><Input placeholder="e.g., Silicon, Air, Custom Glass" {...field} /></FormControl>
+                                <FormControl><Input placeholder="e.g., Silicon, Air, Custom Glass" {...field} value={field.value ?? ''} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -280,10 +298,11 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                 <div className="flex flex-wrap gap-2 items-center mb-2">
                                     <input type="file" accept=".csv,.txt,.dat" style={{ display: 'none' }} ref={el => fileInputRefs.current[libIndex] = el} onChange={(e) => handleFileUploadForLibraryMaterial(e, libIndex)} />
                                     <Button type="button" size="sm" variant="outline" onClick={() => fileInputRefs.current[libIndex]?.click()}><UploadCloud size={14} className="mr-1" /> Upload File</Button>
-                                    {!showDispersiveTable && dispersiveDataPoints && dispersiveDataPoints.length > 0 && (
+                                    
+                                    {!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0 && (
                                         <>
-                                            <Button type="button" size="sm" variant="outline" onClick={() => { console.log('Plotting data for material:', watch(`materialLibrary.${libIndex}.name`), dispersiveDataPoints); toast({title: "Plot Data (Placeholder)", description: "Functionality to plot material data will be added here."}) }}>
-                                                <BarChartHorizontalBig size={14} className="mr-1" /> Plot Data
+                                            <Button type="button" size="sm" variant="outline" onClick={() => handlePlotData(libIndex)}>
+                                                <Eye size={14} className="mr-1" /> Plot Data
                                             </Button>
                                             <Button type="button" size="sm" variant="outline" onClick={() => clearAndEditManually(libIndex)}>
                                                 <Edit3 size={14} className="mr-1" /> Clear & Edit Manually
@@ -292,7 +311,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                     )}
                                 </div>
                                 
-                                {showDispersiveTable && (
+                                {showDispersiveTableInputs && (
                                     <>
                                     <div className="flex justify-between items-center mb-2">
                                       <FormLabel className="flex items-center gap-1 text-sm"><TableIcon size={14} />Dispersion Data (Wavelength, n, k)</FormLabel>
@@ -321,7 +340,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                     />
                                     </>
                                 )}
-                                {!showDispersiveTable && dispersiveDataPoints && dispersiveDataPoints.length > 0 && (
+                                {!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0 && (
                                     <p className="text-sm text-muted-foreground pl-1">{dispersiveDataPoints.length} data points loaded.</p>
                                 )}
                             </div>
@@ -338,7 +357,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             {/* --- Sweep Type Section --- */}
             <FormField control={control} name="sweepType" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-1 text-base font-semibold"><Repeat size={16} />Calculation Sweep Type</FormLabel>
+                  <FormLabel className="text-base font-semibold flex items-center gap-1"><Repeat size={16} />Calculation Sweep Type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select sweep type" /></SelectTrigger></FormControl>
                     <SelectContent>
@@ -458,7 +477,28 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
         </Form>
       </CardContent>
     </Card>
+
+    {/* Material Data Plot Dialog */}
+    <Dialog open={isMaterialPlotDialogOpen} onOpenChange={setIsMaterialPlotDialogOpen}>
+        <DialogContent className="sm:max-w-[70vw] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle>Material Dispersion Data: {plottingMaterialName || "Selected Material"}</DialogTitle>
+                <DialogDescription>
+                    Plot of Refractive Index (n) and Extinction Coefficient (k) vs. Wavelength.
+                </DialogDescription>
+            </DialogHeader>
+            {plottingMaterialData && plottingMaterialName && (
+                <div className="py-4">
+                    <MaterialDataChart data={plottingMaterialData} materialName={plottingMaterialName} />
+                </div>
+            )}
+            <DialogFooter>
+                 <DialogClose asChild>
+                    <Button type="button" variant="outline">Close</Button>
+                 </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }
-
-
