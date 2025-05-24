@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon } from 'lucide-react';
-import React, { useEffect, type RefObject } from 'react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud } from 'lucide-react';
+import React, { useEffect, type RefObject, useRef } from 'react';
 import ReCAPTCHA from 'react-google-recaptcha';
+import { useToast } from "@/hooks/use-toast";
 
 interface InputFormProps {
   onSubmit: (data: SolverFormValues) => void;
@@ -29,6 +30,9 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     defaultValues: defaultSolverFormValues,
     mode: 'onBlur',
   });
+  const { toast } = useToast();
+  const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
 
   const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting, errors } } = form;
 
@@ -40,7 +44,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     name: 'thickness',
   });
 
-  // useFieldArray for layerMaterials
   const { fields: layerMaterialFields, append: appendLayerMaterial, remove: removeLayerMaterial, update: updateLayerMaterial } = useFieldArray({
     control,
     name: 'layerMaterials',
@@ -56,11 +59,10 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       return;
     }
 
-    // Sync thickness array
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
-        appendThickness(100, { shouldFocus: false }); // Default thickness 100nm
+        appendThickness(100, { shouldFocus: false }); 
       }
     } else if (parsedNumLayers < currentThicknessLength) {
       for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
@@ -68,7 +70,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       }
     }
 
-    // Sync layerMaterials array
     const currentLayerMaterialLength = layerMaterialFields.length;
     if (parsedNumLayers > currentLayerMaterialLength) {
       for (let i = currentLayerMaterialLength; i < parsedNumLayers; i++) {
@@ -83,7 +84,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
 
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
-    // Ensure dispersive data is sorted by wavelength before submission
     const processedData = {
       ...data,
       layerMaterials: data.layerMaterials.map(material => {
@@ -99,13 +99,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     onSubmit(processedData);
   };
   
-  // Helper for dispersive data points within each layer
-  // We need to manage field arrays for each layer's dispersive data
-  // This is complex because useFieldArray is typically used at a fixed path.
-  // For simplicity, we directly manipulate the form state for dispersive data points for now
-  // or use a sub-component. Let's use a sub-component approach later if needed.
-  // For now, a simple add/remove will modify the form's 'layerMaterials[index].data' array.
-
   const handleMaterialTypeChange = (layerIndex: number, newType: 'constant' | 'dispersive') => {
     const currentMaterial = watch(`layerMaterials.${layerIndex}`);
     if (newType === 'constant' && currentMaterial.type !== 'constant') {
@@ -125,10 +118,76 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
   const removeDispersivePoint = (layerIndex: number, pointIndex: number) => {
     const currentMaterial = watch(`layerMaterials.${layerIndex}`);
-    if (currentMaterial.type === 'dispersive' && currentMaterial.data.length > 2) { // Keep at least 2 points
+    if (currentMaterial.type === 'dispersive' && currentMaterial.data.length > 2) { 
       const newDataArray = currentMaterial.data.filter((_, idx) => idx !== pointIndex);
       updateLayerMaterial(layerIndex, { ...currentMaterial, data: newDataArray });
     }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, layerIndex: number) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) {
+        toast({ title: "Error Reading File", description: "Could not read file content.", variant: "destructive" });
+        return;
+      }
+
+      const points: DispersiveDataPoint[] = [];
+      const lines = text.split(/\r\n|\n/);
+
+      lines.forEach(line => {
+        const trimmedLine = line.trim();
+        // Skip empty lines or comment lines
+        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) {
+          return;
+        }
+
+        const parts = trimmedLine.split(/[\s,;\t]+/); // Split by comma, semicolon, space, or tab
+        if (parts.length === 3) {
+          const wavelength = parseFloat(parts[0]);
+          const n = parseFloat(parts[1]);
+          const k = parseFloat(parts[2]);
+
+          if (!isNaN(wavelength) && !isNaN(n) && !isNaN(k)) {
+            points.push({ wavelength, n, k });
+          }
+        }
+      });
+
+      if (points.length === 0) {
+        toast({ title: "Parsing Error", description: "No valid data points found. Ensure file has 3 numeric columns (wavelength, n, k).", variant: "destructive" });
+        return;
+      }
+      
+      // Sort points by wavelength
+      points.sort((a, b) => a.wavelength - b.wavelength);
+
+      // Check if there are at least 2 points for interpolation
+      if (points.length < 2) {
+        toast({ title: "Insufficient Data", description: "At least two data points are required for interpolation.", variant: "destructive"});
+        return;
+      }
+
+      const currentMaterial = watch(`layerMaterials.${layerIndex}`);
+      if (currentMaterial.type === 'dispersive') {
+        updateLayerMaterial(layerIndex, { ...currentMaterial, data: points });
+        toast({ title: "File Processed", description: `${points.length} data points loaded for Layer ${layerIndex + 1}.` });
+      }
+    };
+
+    reader.onerror = () => {
+      toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
+    };
+
+    reader.readAsText(file);
+    // Reset file input to allow uploading the same file again if needed
+    if(event.target) event.target.value = ''; 
   };
 
 
@@ -147,7 +206,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
               name="sweepType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-1"><Repeat size={16} />Calculation Sweep Type</FormLabel>
+                  <FormLabel className="flex items-center gap-1 text-base font-semibold"><Repeat size={16} />Calculation Sweep Type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -178,7 +237,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             name="incidentMediumRefractiveIndex.n"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
+                                <FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -191,7 +250,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             name="incidentMediumRefractiveIndex.k"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
+                                <FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -209,7 +268,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             name="substrateMediumRefractiveIndex.n"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
+                                <FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -222,7 +281,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             name="substrateMediumRefractiveIndex.k"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
+                                <FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
                                 <FormControl>
                                 <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                                 </FormControl>
@@ -242,7 +301,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 name="numLayers"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-1"><Layers size={14} />Number of Internal Layers</FormLabel>
+                    <FormLabel className="flex items-center gap-1 text-sm"><Layers size={14} />Number of Internal Layers</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="e.g., 1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} min="0" max="20" />
                     </FormControl>
@@ -255,7 +314,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 name="polarization"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-1"><Waves size={14} />Polarization</FormLabel>
+                    <FormLabel className="flex items-center gap-1 text-sm"><Waves size={14} />Polarization</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -284,7 +343,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name="minWavelength"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Min Wavelength (nm)</FormLabel>
+                            <FormLabel className="text-sm">Min Wavelength (nm)</FormLabel>
                             <FormControl>
                             <Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                             </FormControl>
@@ -297,7 +356,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name="maxWavelength"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Max Wavelength (nm)</FormLabel>
+                            <FormLabel className="text-sm">Max Wavelength (nm)</FormLabel>
                             <FormControl>
                             <Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                             </FormControl>
@@ -310,7 +369,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name="angleOfIncidence"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center gap-1"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel>
+                            <FormLabel className="flex items-center gap-1 text-sm"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel>
                             <FormControl>
                             <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                             </FormControl>
@@ -331,7 +390,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name="wavelength"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center gap-1"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel>
+                            <FormLabel className="flex items-center gap-1 text-sm"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel>
                             <FormControl>
                             <Input type="number" step="1" placeholder="e.g., 500" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                             </FormControl>
@@ -344,7 +403,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name="minAngle"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Min Angle of Incidence (°)</FormLabel>
+                            <FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel>
                             <FormControl>
                             <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                             </FormControl>
@@ -357,7 +416,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name="maxAngle"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Max Angle of Incidence (°)</FormLabel>
+                            <FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel>
                             <FormControl>
                             <Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
                             </FormControl>
@@ -382,7 +441,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         name={`thickness.${index}`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-1"><Ruler size={14} />Thickness (nm)</FormLabel>
+                            <FormLabel className="flex items-center gap-1 text-sm"><Ruler size={14} />Thickness (nm)</FormLabel>
                             <FormControl>
                               <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
                               value={field.value ?? ''}
@@ -398,10 +457,13 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                           name={`layerMaterials.${index}.type`}
                           render={({ field: typeField }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-1"><Edit3 size={14}/>Material Type</FormLabel>
+                              <FormLabel className="flex items-center gap-1 text-sm"><Edit3 size={14}/>Material Type</FormLabel>
                               <Select 
-                                onValueChange={(value: 'constant' | 'dispersive') => handleMaterialTypeChange(index, value)} 
-                                defaultValue={typeField.value}
+                                onValueChange={(value: 'constant' | 'dispersive') => {
+                                  handleMaterialTypeChange(index, value);
+                                  typeField.onChange(value); // Ensure RHF knows about the change
+                                }}
+                                value={typeField.value} // Ensure Select is controlled by RHF
                               >
                                 <FormControl>
                                   <SelectTrigger>
@@ -426,7 +488,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                           name={`layerMaterials.${index}.n`}
                           render={({ field }) => (
                               <FormItem>
-                              <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
+                              <FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
                               <FormControl>
                                   <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
                                   value={field.value ?? ''}
@@ -442,7 +504,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                           name={`layerMaterials.${index}.k`}
                           render={({ field }) => (
                               <FormItem>
-                              <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
+                              <FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
                               <FormControl>
                                   <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
                                   value={field.value ?? ''}
@@ -463,7 +525,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                           name={`layerMaterials.${index}.materialName`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-1"><Edit3 size={14} />Material Name (Optional)</FormLabel>
+                              <FormLabel className="flex items-center gap-1 text-sm"><Edit3 size={14} />Material Name (Optional)</FormLabel>
                               <FormControl>
                                 <Input type="text" placeholder="e.g., SiO2" {...field} value={field.value ?? ''} />
                               </FormControl>
@@ -472,10 +534,22 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                           )}
                         />
                         <div className="flex justify-between items-center mb-2">
-                            <FormLabel className="flex items-center gap-1"><TableIcon size={14} />Dispersion Data (Wavelength, n, k)</FormLabel>
-                            <Button type="button" size="sm" variant="outline" onClick={() => addDispersivePoint(index)}>
-                                <PlusCircle size={14} className="mr-1" /> Add Point
-                            </Button>
+                            <FormLabel className="flex items-center gap-1 text-sm"><TableIcon size={14} />Dispersion Data (Wavelength, n, k)</FormLabel>
+                            <div className="flex gap-2">
+                                <input
+                                    type="file"
+                                    accept=".csv,.txt"
+                                    style={{ display: 'none' }}
+                                    ref={el => fileInputRefs.current[index] = el}
+                                    onChange={(e) => handleFileUpload(e, index)}
+                                />
+                                <Button type="button" size="sm" variant="outline" onClick={() => fileInputRefs.current[index]?.click()}>
+                                    <UploadCloud size={14} className="mr-1" /> Upload File
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => addDispersivePoint(index)}>
+                                    <PlusCircle size={14} className="mr-1" /> Add Point
+                                </Button>
+                            </div>
                         </div>
                         {(watch(`layerMaterials.${index}.data`) || []).map((point, pointIndex) => (
                           <div key={`layer-${index}-point-${pointIndex}`} className="grid grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
@@ -534,6 +608,9 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                         {/* Display Zod error for the whole data array if needed */}
                         {errors.layerMaterials?.[index]?.data?.message && (
                             <p className="text-sm font-medium text-destructive">{errors.layerMaterials?.[index]?.data?.message}</p>
+                        )}
+                         {errors.layerMaterials?.[index]?.data?.root?.message && (
+                            <p className="text-sm font-medium text-destructive">{errors.layerMaterials?.[index]?.data?.root?.message}</p>
                         )}
                       </div>
                     )}
