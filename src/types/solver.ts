@@ -1,15 +1,12 @@
 
 import { z } from 'zod';
 
-export const LayerParamSchema = z.object({
-  value: z.coerce.number().min(0, "Value must be non-negative"),
-});
-
-// Schemas for Material Types
+// --- Individual Material Property Schemas (Constant or Dispersive) ---
 const ConstantMaterialSchema = z.object({
   type: z.literal('constant'),
   n: z.coerce.number().min(0, "n must be non-negative").default(1.0),
   k: z.coerce.number().min(0, "k must be non-negative").default(0.0),
+  materialName: z.string().optional(), // Keep for consistency if user wants to name even constant ones
 }).describe("Material with fixed n and k values.");
 
 const DispersiveDataPointSchema = z.object({
@@ -17,19 +14,27 @@ const DispersiveDataPointSchema = z.object({
   n: z.coerce.number().min(0, "n must be non-negative").default(1.5),
   k: z.coerce.number().min(0, "k must be non-negative").default(0.0),
 });
-
 export type DispersiveDataPoint = z.infer<typeof DispersiveDataPointSchema>;
 
 const DispersiveMaterialSchema = z.object({
   type: z.literal('dispersive'),
-  materialName: z.string().optional().describe("Optional name for this dispersive material (e.g., SiO2)"),
+  materialName: z.string().optional().describe("Descriptive name for this dispersive material (e.g., SiO2 - Johnson)"),
   data: z.array(DispersiveDataPointSchema)
     .min(2, "At least two data points are needed for interpolation.")
     .default([{ wavelength: 400, n: 1.5, k: 0.0 }, { wavelength: 700, n: 1.5, k: 0.0 }]),
 }).describe("Material with n and k values that vary with wavelength, defined by a table.");
 
-export const LayerMaterialSchema = z.union([ConstantMaterialSchema, DispersiveMaterialSchema]);
-export type LayerMaterial = z.infer<typeof LayerMaterialSchema>;
+export const LayerMaterialPropertiesSchema = z.union([ConstantMaterialSchema, DispersiveMaterialSchema]);
+export type LayerMaterialProperties = z.infer<typeof LayerMaterialPropertiesSchema>;
+
+// --- Named Material for the Library ---
+export const NamedMaterialSchema = z.object({
+  id: z.string().default(() => `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`), // Unique ID
+  name: z.string().min(1, "Material name cannot be empty."),
+  properties: LayerMaterialPropertiesSchema,
+});
+export type NamedMaterial = z.infer<typeof NamedMaterialSchema>;
+
 
 export const ComplexRefractiveIndexSchema = z.object({
   n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"),
@@ -41,13 +46,22 @@ export const ComplexRefractiveIndexSchema = z.object({
 
 export const SolverFormSchema = z.object({
   sweepType: z.enum(['wavelength', 'angle']).default('wavelength').describe("Parameter to sweep in the calculation."),
-  incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the incident medium"),
-  substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.describe("Refractive index of the substrate medium"),
-  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers for demo"),
-  thickness: z.array(z.coerce.number().min(0, "Thickness must be non-negative nm. Use 0 for no layer, or >0 for actual thickness.")).describe("Layer thicknesses in nm"),
+  incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.default({ n: 1.0, k: 0.0 }).describe("Refractive index of the incident medium"),
+  substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.default({ n: 1.0, k: 0.0 }).describe("Refractive index of the substrate medium"),
   
-  // This is the changed field
-  layerMaterials: z.array(LayerMaterialSchema).describe("Material properties for each layer (can be constant or dispersive)."),
+  materialLibrary: z.array(NamedMaterialSchema).default([
+    { id: 'default-air', name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
+    { id: 'default-glass', name: 'Glass (BK7 approx)', properties: { type: 'constant', n: 1.52, k: 0.0, materialName: 'Glass (BK7 approx)' } },
+  ]),
+
+  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers for demo").default(1),
+  thickness: z.array(z.coerce.number().min(0, "Thickness must be non-negative nm. Use 0 for no layer, or >0 for actual thickness.")).default([100]),
+  
+  layerMaterials: z.array(
+    z.object({
+      materialId: z.string().min(1, "Please select a material.") // Refers to NamedMaterial.id
+    })
+  ).default([{ materialId: 'default-glass' }]), // Default layer uses the pre-defined glass
   
   // Fields for wavelength sweep
   minWavelength: z.coerce.number().min(1, "Min wavelength must be > 0 nm").default(400),
@@ -65,7 +79,7 @@ export const SolverFormSchema = z.object({
   path: ["numLayers"],
 })
 .refine(data => data.layerMaterials.length === data.numLayers, {
-  message: "Layer material entries must match number of layers.",
+  message: "Layer material selections must match number of layers.",
   path: ["numLayers"],
 })
 .superRefine((data, ctx) => {
@@ -96,21 +110,43 @@ export const SolverFormSchema = z.object({
     }
   }
 
-  // Validate dispersive data points are sorted by wavelength if present
-  data.layerMaterials.forEach((material, index) => {
-    if (material.type === 'dispersive') {
-      for (let i = 0; i < material.data.length - 1; i++) {
-        if (material.data[i].wavelength >= material.data[i+1].wavelength) {
+  // Validate material names in library are unique
+  const materialNames = new Set();
+  data.materialLibrary.forEach((material, index) => {
+    if (materialNames.has(material.name.toLowerCase())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Material name "${material.name}" is not unique. Please use distinct names.`,
+        path: [`materialLibrary.${index}.name`],
+      });
+    }
+    materialNames.add(material.name.toLowerCase());
+
+    // Validate dispersive data points are sorted by wavelength if present
+    if (material.properties.type === 'dispersive') {
+      for (let i = 0; i < material.properties.data.length - 1; i++) {
+        if (material.properties.data[i].wavelength >= material.properties.data[i+1].wavelength) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: `Wavelengths in dispersive data for Layer ${index + 1} must be strictly increasing.`,
-            path: [`layerMaterials.${index}.data.${i+1}.wavelength`],
+            message: `Wavelengths in dispersive data for material "${material.name}" must be strictly increasing.`,
+            path: [`materialLibrary.${index}.properties.data.${i+1}.wavelength`],
           });
         }
       }
     }
   });
-
+  
+  // Validate layer materialId references existing material in library
+  const materialLibraryIds = new Set(data.materialLibrary.map(m => m.id));
+  data.layerMaterials.forEach((layer, index) => {
+      if (layer.materialId && !materialLibraryIds.has(layer.materialId)) {
+          ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Selected material for Layer ${index + 1} is not found in the library.`,
+              path: [`layerMaterials.${index}.materialId`],
+          });
+      }
+  });
 });
 
 export type SolverFormValues = z.infer<typeof SolverFormSchema>;
@@ -129,29 +165,39 @@ export interface CalculationResults {
   sweepParameter: SweepParameter; 
 }
 
-export const defaultLayerMaterialConstant: LayerMaterial = {
+export const defaultLayerMaterialPropertiesConstant: LayerMaterialProperties = {
   type: 'constant' as const,
   n: 1.0,
   k: 0.0,
+  materialName: 'New Constant Material',
 };
 
-export const defaultLayerMaterialDispersive: LayerMaterial = {
+export const defaultLayerMaterialPropertiesDispersive: LayerMaterialProperties = {
     type: 'dispersive' as const,
-    materialName: '',
+    materialName: 'New Dispersive Material',
     data: [
         { wavelength: 400, n: 1.5, k: 0.0 },
         { wavelength: 700, n: 1.5, k: 0.0 }
     ]
 };
 
+export const defaultNamedMaterial: NamedMaterial = {
+    id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    name: "New Material",
+    properties: defaultLayerMaterialPropertiesConstant,
+}
 
 export const defaultSolverFormValues: SolverFormValues = {
   sweepType: 'wavelength',
   incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 },
   substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 },
+  materialLibrary: [
+    { id: 'default-air', name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
+    { id: 'default-glass', name: 'Glass (BK7 approx)', properties: { type: 'constant', n: 1.52, k: 0.0, materialName: 'Glass (BK7 approx)' } },
+  ],
   numLayers: 1, 
   thickness: [100], 
-  layerMaterials: [defaultLayerMaterialConstant], // Default to one constant layer
+  layerMaterials: [{ materialId: 'default-glass' }], // Default layer uses the pre-defined glass
   
   minWavelength: 400,
   maxWavelength: 700,
@@ -164,3 +210,4 @@ export const defaultSolverFormValues: SolverFormValues = {
   polarization: 'TE',
 };
 
+    

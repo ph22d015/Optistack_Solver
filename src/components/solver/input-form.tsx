@@ -3,8 +3,8 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import type { SolverFormValues, LayerMaterial, DispersiveDataPoint } from '@/types/solver';
-import { SolverFormSchema, defaultSolverFormValues, defaultLayerMaterialConstant, defaultLayerMaterialDispersive } from '@/types/solver';
+import type { SolverFormValues, NamedMaterial, DispersiveDataPoint, LayerMaterialProperties } from '@/types/solver';
+import { SolverFormSchema, defaultSolverFormValues, defaultNamedMaterial, defaultLayerMaterialPropertiesConstant, defaultLayerMaterialPropertiesDispersive } from '@/types/solver';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud } from 'lucide-react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType } from 'lucide-react';
 import React, { useEffect, type RefObject, useRef } from 'react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +28,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur',
+    mode: 'onBlur', // 'onChange' can be too aggressive for performance with complex forms
   });
   const { toast } = useToast();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -38,18 +38,24 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
+  const materialLibrary = watch('materialLibrary'); // Watch the library to populate layer selects
 
   const { fields: thicknessFields, append: appendThickness, remove: removeThickness } = useFieldArray({
     control,
     name: 'thickness',
   });
 
-  const { fields: layerMaterialFields, append: appendLayerMaterial, remove: removeLayerMaterial, update: updateLayerMaterial } = useFieldArray({
+  const { fields: layerMaterialFields, append: appendLayerMaterialSelection, remove: removeLayerMaterialSelection } = useFieldArray({
     control,
-    name: 'layerMaterials',
+    name: 'layerMaterials', // This now controls the selection of materialId for each layer
   });
 
+  const { fields: libraryMaterialFields, append: appendLibraryMaterial, remove: removeLibraryMaterial, update: updateLibraryMaterialProperties } = useFieldArray({
+    control,
+    name: 'materialLibrary',
+  });
 
+  // Sync thickness and layerMaterial (selection) arrays with numLayers
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
@@ -59,6 +65,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       return;
     }
 
+    // Sync thickness array
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
@@ -70,27 +77,33 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       }
     }
 
-    const currentLayerMaterialLength = layerMaterialFields.length;
-    if (parsedNumLayers > currentLayerMaterialLength) {
-      for (let i = currentLayerMaterialLength; i < parsedNumLayers; i++) {
-        appendLayerMaterial({ ...defaultLayerMaterialConstant }, { shouldFocus: false });
+    // Sync layerMaterials (material ID selection) array
+    const currentLayerMaterialSelectionLength = layerMaterialFields.length;
+    if (parsedNumLayers > currentLayerMaterialSelectionLength) {
+      for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
+        // Append a new layer selection. It will be empty or use a default material from library if available
+        appendLayerMaterialSelection({ materialId: materialLibrary.length > 0 ? materialLibrary[0].id : '' }, { shouldFocus: false });
       }
-    } else if (parsedNumLayers < currentLayerMaterialLength) {
-      for (let i = currentLayerMaterialLength - 1; i >= parsedNumLayers; i--) {
-        removeLayerMaterial(i);
+    } else if (parsedNumLayers < currentLayerMaterialSelectionLength) {
+      for (let i = currentLayerMaterialSelectionLength - 1; i >= parsedNumLayers; i--) {
+        removeLayerMaterialSelection(i);
       }
     }
-  }, [numLayers, appendThickness, removeThickness, appendLayerMaterial, removeLayerMaterial, thicknessFields.length, layerMaterialFields.length, setValue]);
+  }, [numLayers, appendThickness, removeThickness, appendLayerMaterialSelection, removeLayerMaterialSelection, thicknessFields.length, layerMaterialFields.length, setValue, materialLibrary]);
 
 
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
+    // Ensure dispersive data in library is sorted by wavelength before submitting
     const processedData = {
       ...data,
-      layerMaterials: data.layerMaterials.map(material => {
-        if (material.type === 'dispersive') {
+      materialLibrary: data.materialLibrary.map(material => {
+        if (material.properties.type === 'dispersive') {
           return {
             ...material,
-            data: [...material.data].sort((a, b) => a.wavelength - b.wavelength),
+            properties: {
+              ...material.properties,
+              data: [...material.properties.data].sort((a, b) => a.wavelength - b.wavelength),
+            }
           };
         }
         return material;
@@ -99,36 +112,34 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     onSubmit(processedData);
   };
   
-  const handleMaterialTypeChange = (layerIndex: number, newType: 'constant' | 'dispersive') => {
-    const currentMaterial = watch(`layerMaterials.${layerIndex}`);
+  const handleMaterialPropertyTypeChange = (libraryMaterialIndex: number, newType: 'constant' | 'dispersive') => {
+    const currentMaterial = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
     if (newType === 'constant' && currentMaterial.type !== 'constant') {
-      updateLayerMaterial(layerIndex, { ...defaultLayerMaterialConstant });
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesConstant, materialName: watch(`materialLibrary.${libraryMaterialIndex}.name`) });
     } else if (newType === 'dispersive' && currentMaterial.type !== 'dispersive') {
-      updateLayerMaterial(layerIndex, { ...defaultLayerMaterialDispersive });
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesDispersive, materialName: watch(`materialLibrary.${libraryMaterialIndex}.name`) });
     }
   };
   
-  const addDispersivePoint = (layerIndex: number) => {
-    const currentMaterial = watch(`layerMaterials.${layerIndex}`);
-    if (currentMaterial.type === 'dispersive') {
-      const newDataArray = [...currentMaterial.data, { wavelength: Math.max(...currentMaterial.data.map(p => p.wavelength), 0) + 50 , n: 1.5, k: 0.0 }];
-      updateLayerMaterial(layerIndex, { ...currentMaterial, data: newDataArray });
+  const addDispersivePointToLibraryMaterial = (libraryMaterialIndex: number) => {
+    const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
+    if (currentProperties.type === 'dispersive') {
+      const newDataArray = [...currentProperties.data, { wavelength: Math.max(...currentProperties.data.map(p => p.wavelength), 0) + 50 , n: 1.5, k: 0.0 }];
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray);
     }
   };
 
-  const removeDispersivePoint = (layerIndex: number, pointIndex: number) => {
-    const currentMaterial = watch(`layerMaterials.${layerIndex}`);
-    if (currentMaterial.type === 'dispersive' && currentMaterial.data.length > 2) { 
-      const newDataArray = currentMaterial.data.filter((_, idx) => idx !== pointIndex);
-      updateLayerMaterial(layerIndex, { ...currentMaterial, data: newDataArray });
+  const removeDispersivePointFromLibraryMaterial = (libraryMaterialIndex: number, pointIndex: number) => {
+    const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
+    if (currentProperties.type === 'dispersive' && currentProperties.data.length > 2) { 
+      const newDataArray = currentProperties.data.filter((_, idx) => idx !== pointIndex);
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray);
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, layerIndex: number) => {
+  const handleFileUploadForLibraryMaterial = async (event: React.ChangeEvent<HTMLInputElement>, libraryMaterialIndex: number) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -137,94 +148,178 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
         toast({ title: "Error Reading File", description: "Could not read file content.", variant: "destructive" });
         return;
       }
-
       const points: DispersiveDataPoint[] = [];
       const lines = text.split(/\r\n|\n/);
-
       lines.forEach(line => {
         const trimmedLine = line.trim();
-        // Skip empty lines or comment lines
-        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) {
-          return;
-        }
-
-        const parts = trimmedLine.split(/[\s,;\t]+/); // Split by comma, semicolon, space, or tab
+        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) return;
+        const parts = trimmedLine.split(/[\s,;\t]+/);
         if (parts.length === 3) {
           const wavelength = parseFloat(parts[0]);
           const n = parseFloat(parts[1]);
           const k = parseFloat(parts[2]);
-
           if (!isNaN(wavelength) && !isNaN(n) && !isNaN(k)) {
             points.push({ wavelength, n, k });
           }
         }
       });
 
-      if (points.length === 0) {
-        toast({ title: "Parsing Error", description: "No valid data points found. Ensure file has 3 numeric columns (wavelength, n, k).", variant: "destructive" });
-        return;
-      }
-      
-      // Sort points by wavelength
-      points.sort((a, b) => a.wavelength - b.wavelength);
-
-      // Check if there are at least 2 points for interpolation
       if (points.length < 2) {
-        toast({ title: "Insufficient Data", description: "At least two data points are required for interpolation.", variant: "destructive"});
+        toast({ title: "Insufficient Data", description: "At least two data points are required for interpolation. File parsing might have failed or data is insufficient.", variant: "destructive"});
         return;
       }
-
-      const currentMaterial = watch(`layerMaterials.${layerIndex}`);
-      if (currentMaterial.type === 'dispersive') {
-        updateLayerMaterial(layerIndex, { ...currentMaterial, data: points });
-        toast({ title: "File Processed", description: `${points.length} data points loaded for Layer ${layerIndex + 1}.` });
+      points.sort((a, b) => a.wavelength - b.wavelength);
+      
+      const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
+      if (currentProperties.type === 'dispersive') {
+        setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, points);
+        toast({ title: "File Processed", description: `${points.length} data points loaded for material "${watch(`materialLibrary.${libraryMaterialIndex}.name`)}".` });
       }
     };
-
-    reader.onerror = () => {
-      toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
-    };
-
+    reader.onerror = () => toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
     reader.readAsText(file);
-    // Reset file input to allow uploading the same file again if needed
     if(event.target) event.target.value = ''; 
   };
-
 
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-2xl mb-2"><Sigma size={24} /> Input Parameters</CardTitle>
-        <CardDescription>Define the multilayer stack, surrounding media, optical, and sweep properties.</CardDescription>
+        <CardDescription className="mb-2">Define the multilayer stack, surrounding media, optical, and sweep properties.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={formHandleSubmit(handleValidatedFormSubmit)} className="space-y-6">
+          <form onSubmit={formHandleSubmit(handleValidatedFormSubmit)} className="space-y-8">
 
-            <FormField
-              control={control}
-              name="sweepType"
-              render={({ field }) => (
+            {/* --- Material Library Section --- */}
+            <div className="space-y-4 p-4 border rounded-md shadow-sm bg-card/60">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold flex items-center gap-2"><Library size={20} /> Material Library</h3>
+                    <Button type="button" size="sm" onClick={() => appendLibraryMaterial({ ...defaultNamedMaterial, id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, name: `Material ${libraryMaterialFields.length + 1}` })}>
+                        <PlusCircle size={16} className="mr-2" /> Add Material
+                    </Button>
+                </div>
+                {libraryMaterialFields.length === 0 && <p className="text-sm text-muted-foreground">No materials defined. Add materials to use in layers.</p>}
+                <div className="space-y-6">
+                {libraryMaterialFields.map((libraryField, libIndex) => (
+                    <Card key={libraryField.id} className="p-4 bg-background/30">
+                        <div className="flex justify-between items-start mb-3">
+                            <FormField
+                            control={control}
+                            name={`materialLibrary.${libIndex}.name`}
+                            render={({ field }) => (
+                                <FormItem className="flex-grow mr-2">
+                                <FormLabel className="text-base font-medium">Material Name</FormLabel>
+                                <FormControl><Input placeholder="e.g., Silicon, Air, Custom Glass" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 mt-6" onClick={() => removeLibraryMaterial(libIndex)}>
+                                <Trash2 size={18} /> <span className="sr-only">Remove Material</span>
+                            </Button>
+                        </div>
+
+                        <FormField
+                            control={control}
+                            name={`materialLibrary.${libIndex}.properties.type`}
+                            render={({ field: typeField }) => (
+                            <FormItem className="mb-3">
+                                <FormLabel className="text-sm">Material Property Type</FormLabel>
+                                <Select 
+                                onValueChange={(value: 'constant' | 'dispersive') => {
+                                    handleMaterialPropertyTypeChange(libIndex, value);
+                                    typeField.onChange(value);
+                                }}
+                                value={typeField.value}
+                                >
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="constant">Constant n & k</SelectItem>
+                                    <SelectItem value="dispersive">Dispersive (Wavelength Dependent)</SelectItem>
+                                </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+
+                        {watch(`materialLibrary.${libIndex}.properties.type`) === 'constant' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={control} name={`materialLibrary.${libIndex}.properties.n`} render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
+                                <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.52" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                <FormMessage /></FormItem> )} />
+                            <FormField control={control} name={`materialLibrary.${libIndex}.properties.k`} render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
+                                <FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                <FormMessage /></FormItem> )} />
+                            </div>
+                        )}
+
+                        {watch(`materialLibrary.${libIndex}.properties.type`) === 'dispersive' && (
+                            <div className="space-y-3 p-3 border rounded-md bg-background/50">
+                                <FormField control={control} name={`materialLibrary.${libIndex}.properties.materialName`} render={({ field }) => (
+                                    <FormItem><FormLabel className="flex items-center gap-1 text-sm"><FileJson size={14} />Descriptive Name (Optional)</FormLabel>
+                                    <FormControl><Input type="text" placeholder="e.g., SiO2 film, Gold - Palik" {...field} value={field.value ?? ''} /></FormControl>
+                                    <FormMessage /></FormItem> )} />
+                                
+                                <div className="flex justify-between items-center mb-2">
+                                    <FormLabel className="flex items-center gap-1 text-sm"><TableIcon size={14} />Dispersion Data (Wavelength, n, k)</FormLabel>
+                                    <div className="flex gap-2">
+                                        <input type="file" accept=".csv,.txt" style={{ display: 'none' }} ref={el => fileInputRefs.current[libIndex] = el} onChange={(e) => handleFileUploadForLibraryMaterial(e, libIndex)} />
+                                        <Button type="button" size="sm" variant="outline" onClick={() => fileInputRefs.current[libIndex]?.click()}><UploadCloud size={14} className="mr-1" /> Upload File</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => addDispersivePointToLibraryMaterial(libIndex)}><PlusCircle size={14} className="mr-1" /> Add Point</Button>
+                                    </div>
+                                </div>
+                                {/* Nested Field Array for Dispersive Data Points */}
+                                <Controller
+                                    control={control}
+                                    name={`materialLibrary.${libIndex}.properties.data`}
+                                    render={({ field: { value = [], onChange } }) => (
+                                        <>
+                                        {(value as DispersiveDataPoint[]).map((point, pointIndex) => (
+                                            <div key={`libMat-${libIndex}-point-${pointIndex}`} className="grid grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
+                                                <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.wavelength`} render={({ field: dpField }) => (
+                                                    <FormItem><FormLabel className="text-xs">λ (nm)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="Wavelength" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.n`} render={({ field: dpField }) => (
+                                                    <FormItem><FormLabel className="text-xs">n</FormLabel><FormControl><Input type="number" step="0.001" placeholder="n" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.k`} render={({ field: dpField }) => (
+                                                    <FormItem><FormLabel className="text-xs">k</FormLabel><FormControl><Input type="number" step="0.001" placeholder="k" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                <Button type="button" variant="ghost" size="icon" className="mt-4 text-destructive hover:text-destructive/80" onClick={() => removeDispersivePointFromLibraryMaterial(libIndex, pointIndex)} disabled={(watch(`materialLibrary.${libIndex}.properties.data`) || []).length <= 2}><Trash2 size={16} /><span className="sr-only">Remove Point</span></Button>
+                                            </div>
+                                        ))}
+                                        {/* Error for the whole 'data' array if root error exists */}
+                                        {errors.materialLibrary?.[libIndex]?.properties?.data?.message && <p className="text-sm font-medium text-destructive">{errors.materialLibrary?.[libIndex]?.properties?.data?.message as string}</p>}
+                                        {errors.materialLibrary?.[libIndex]?.properties?.data?.root?.message && <p className="text-sm font-medium text-destructive">{errors.materialLibrary?.[libIndex]?.properties?.data?.root?.message as string}</p>}
+                                        </>
+                                    )}
+                                />
+                            </div>
+                        )}
+                    </Card>
+                ))}
+                </div>
+                 {errors.materialLibrary?.message && <p className="text-sm font-medium text-destructive">{errors.materialLibrary.message}</p>}
+                 {errors.materialLibrary?.root?.message && <p className="text-sm font-medium text-destructive">{errors.materialLibrary.root.message}</p>}
+            </div>
+            <Separator/>
+
+
+            {/* --- Sweep Type and General Parameters --- */}
+            <FormField control={control} name="sweepType" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-1 text-base font-semibold"><Repeat size={16} />Calculation Sweep Type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select sweep type" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select sweep type" /></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="wavelength">Sweep Wavelength (fixed angle)</SelectItem>
                       <SelectItem value="angle">Sweep Angle (fixed wavelength)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Choose whether to calculate response over a range of wavelengths or a range of angles.
-                  </FormDescription>
+                  <FormDescription>Choose calculation over wavelengths or angles.</FormDescription>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
+                </FormItem> )} />
             <Separator/>
 
             <h3 className="text-base font-semibold flex items-center gap-2"><ArrowDownUp size={16}/>Surrounding Media</h3>
@@ -232,202 +327,52 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 <div>
                     <Label className="font-semibold text-sm mb-2 block">Incident Medium (Top)</Label>
                     <div className="space-y-3">
-                        <FormField
-                            control={control}
-                            name="incidentMediumRefractiveIndex.n"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
-                                <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={control}
-                            name="incidentMediumRefractiveIndex.k"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
-                                <FormControl>
-                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
+                        <FormField control={control} name="incidentMediumRefractiveIndex.n" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={control} name="incidentMediumRefractiveIndex.k" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
                  <div>
                     <Label className="font-semibold text-sm mb-2 block">Substrate Medium (Bottom)</Label>
                      <div className="space-y-3">
-                        <FormField
-                            control={control}
-                            name="substrateMediumRefractiveIndex.n"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
-                                <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={control}
-                            name="substrateMediumRefractiveIndex.k"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
-                                <FormControl>
-                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
+                        <FormField control={control} name="substrateMediumRefractiveIndex.n" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={control} name="substrateMediumRefractiveIndex.k" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                     </div>
                 </div>
             </div>
-
             <Separator />
+
             <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={16}/>Stack & Common Optical Properties</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={control}
-                name="numLayers"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1 text-sm"><Layers size={14} />Number of Internal Layers</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} min="0" max="20" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={control}
-                name="polarization"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1 text-sm"><Waves size={14} />Polarization</FormLabel>
+              <FormField control={control} name="numLayers" render={({ field }) => (
+                  <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Layers size={14} />Number of Internal Layers</FormLabel>
+                  <FormControl><Input type="number" placeholder="e.g., 1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} min="0" max="20" /></FormControl>
+                  <FormDescription>Layers between Incident and Substrate media.</FormDescription><FormMessage /></FormItem> )} />
+               <FormField control={control} name="polarization" render={({ field }) => (
+                  <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Waves size={14} />Polarization</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select polarization" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="TE">TE (Transverse Electric / s-pol)</SelectItem>
-                        <SelectItem value="TM">TM (Transverse Magnetic / p-pol)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select polarization" /></SelectTrigger></FormControl>
+                      <SelectContent><SelectItem value="TE">TE (s-pol)</SelectItem><SelectItem value="TM">TM (p-pol)</SelectItem></SelectContent>
+                    </Select><FormMessage /></FormItem> )} />
             </div>
-
             <Separator />
 
-            {sweepType === 'wavelength' && (
-              <>
+            {/* --- Conditional Sweep Parameter Inputs --- */}
+            {sweepType === 'wavelength' && ( <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={16}/>Wavelength Sweep Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField
-                        control={control}
-                        name="minWavelength"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-sm">Min Wavelength (nm)</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={control}
-                        name="maxWavelength"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-sm">Max Wavelength (nm)</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={control}
-                        name="angleOfIncidence"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center gap-1 text-sm"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-              </>
-            )}
-
-            {sweepType === 'angle' && (
-              <>
+                    <FormField control={control} name="minWavelength" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="maxWavelength" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="angleOfIncidence" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                </div> </> )}
+            {sweepType === 'angle' && ( <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><GitCommitHorizontal size={16}/>Angle Sweep Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField
-                        control={control}
-                        name="wavelength"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center gap-1 text-sm"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 500" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={control}
-                        name="minAngle"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={control}
-                        name="maxAngle"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-              </>
-            )}
+                    <FormField control={control} name="wavelength" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 500" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="minAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                </div> </> )}
 
+            {/* --- Layer Details Section --- */}
             {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && (
               <>
                 <Separator className="my-6" />
@@ -436,197 +381,35 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                   <div key={layerField.id} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
                     <h4 className="font-semibold text-sm text-primary">Layer {index + 1}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={control}
-                        name={`thickness.${index}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-1 text-sm"><Ruler size={14} />Thickness (nm)</FormLabel>
-                            <FormControl>
-                              <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
-                              value={field.value ?? ''}
-                              onChange={e => field.onChange(parseFloat(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                       <FormField
-                          control={control}
-                          name={`layerMaterials.${index}.type`}
-                          render={({ field: typeField }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-1 text-sm"><Edit3 size={14}/>Material Type</FormLabel>
-                              <Select 
-                                onValueChange={(value: 'constant' | 'dispersive') => {
-                                  handleMaterialTypeChange(index, value);
-                                  typeField.onChange(value); // Ensure RHF knows about the change
-                                }}
-                                value={typeField.value} // Ensure Select is controlled by RHF
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select material type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="constant">Constant n & k</SelectItem>
-                                  <SelectItem value="dispersive">Dispersive (Table)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField control={control} name={`thickness.${index}`} render={({ field }) => (
+                          <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Ruler size={14} />Thickness (nm)</FormLabel>
+                          <FormControl><Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                          <FormMessage /></FormItem> )} />
+                      
+                      <FormField control={control} name={`layerMaterials.${index}.materialId`} render={({ field }) => (
+                          <FormItem><FormLabel className="flex items-center gap-1 text-sm"><BookType size={14}/>Material</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value ?? ''} >
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select a material from library" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                {materialLibrary.length === 0 && <SelectItem value="" disabled>No materials in library</SelectItem>}
+                                {materialLibrary.map(material => (
+                                  <SelectItem key={material.id} value={material.id}>{material.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage /></FormItem> )} />
                     </div>
-                    
-                    {watch(`layerMaterials.${index}.type`) === 'constant' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <FormField
-                          control={control}
-                          name={`layerMaterials.${index}.n`}
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
-                              <FormControl>
-                                  <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
-                                  value={field.value ?? ''}
-                                  onChange={e => field.onChange(parseFloat(e.target.value))}
-                                  />
-                              </FormControl>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                          />
-                          <FormField
-                          control={control}
-                          name={`layerMaterials.${index}.k`}
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
-                              <FormControl>
-                                  <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
-                                  value={field.value ?? ''}
-                                  onChange={e => field.onChange(parseFloat(e.target.value))}
-                                  />
-                              </FormControl>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                          />
-                      </div>
-                    )}
-
-                    {watch(`layerMaterials.${index}.type`) === 'dispersive' && (
-                      <div className="mt-4 space-y-3 p-3 border rounded-md bg-background/30">
-                        <FormField
-                          control={control}
-                          name={`layerMaterials.${index}.materialName`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-1 text-sm"><Edit3 size={14} />Material Name (Optional)</FormLabel>
-                              <FormControl>
-                                <Input type="text" placeholder="e.g., SiO2" {...field} value={field.value ?? ''} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="flex justify-between items-center mb-2">
-                            <FormLabel className="flex items-center gap-1 text-sm"><TableIcon size={14} />Dispersion Data (Wavelength, n, k)</FormLabel>
-                            <div className="flex gap-2">
-                                <input
-                                    type="file"
-                                    accept=".csv,.txt"
-                                    style={{ display: 'none' }}
-                                    ref={el => fileInputRefs.current[index] = el}
-                                    onChange={(e) => handleFileUpload(e, index)}
-                                />
-                                <Button type="button" size="sm" variant="outline" onClick={() => fileInputRefs.current[index]?.click()}>
-                                    <UploadCloud size={14} className="mr-1" /> Upload File
-                                </Button>
-                                <Button type="button" size="sm" variant="outline" onClick={() => addDispersivePoint(index)}>
-                                    <PlusCircle size={14} className="mr-1" /> Add Point
-                                </Button>
-                            </div>
-                        </div>
-                        {(watch(`layerMaterials.${index}.data`) || []).map((point, pointIndex) => (
-                          <div key={`layer-${index}-point-${pointIndex}`} className="grid grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
-                            <FormField
-                              control={control}
-                              name={`layerMaterials.${index}.data.${pointIndex}.wavelength`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs">λ (nm)</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" step="0.1" placeholder="Wavelength" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={control}
-                              name={`layerMaterials.${index}.data.${pointIndex}.n`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs">n</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" step="0.001" placeholder="n" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={control}
-                              name={`layerMaterials.${index}.data.${pointIndex}.k`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs">k</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" step="0.001" placeholder="k" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
-                              className="mt-4 text-destructive hover:text-destructive/80" 
-                              onClick={() => removeDispersivePoint(index, pointIndex)}
-                              disabled={(watch(`layerMaterials.${index}.data`) || []).length <= 2}
-                            >
-                              <Trash2 size={16} />
-                              <span className="sr-only">Remove Point</span>
-                            </Button>
-                          </div>
-                        ))}
-                        {/* Display Zod error for the whole data array if needed */}
-                        {errors.layerMaterials?.[index]?.data?.message && (
-                            <p className="text-sm font-medium text-destructive">{errors.layerMaterials?.[index]?.data?.message}</p>
-                        )}
-                         {errors.layerMaterials?.[index]?.data?.root?.message && (
-                            <p className="text-sm font-medium text-destructive">{errors.layerMaterials?.[index]?.data?.root?.message}</p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 ))}
+                 {errors.layerMaterials?.message && <p className="text-sm font-medium text-destructive">{errors.layerMaterials.message}</p>}
+                 {errors.layerMaterials?.root?.message && <p className="text-sm font-medium text-destructive">{errors.layerMaterials.root.message}</p>}
               </>
             )}
 
             {recaptchaSiteKey && (
               <div className="my-6 flex justify-center md:justify-start">
-                <ReCAPTCHA
-                  ref={recaptchaRef}
-                  sitekey={recaptchaSiteKey}
-                />
-              </div>
-            )}
+                <ReCAPTCHA ref={recaptchaRef} sitekey={recaptchaSiteKey} />
+              </div> )}
 
             <Button type="submit" disabled={isLoading || isSubmitting} className="w-full md:w-auto mt-6">
               <Calculator size={18} className="mr-2" />
@@ -638,4 +421,5 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     </Card>
   );
 }
+
     

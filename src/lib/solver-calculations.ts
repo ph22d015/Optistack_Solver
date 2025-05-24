@@ -1,5 +1,5 @@
 
-import type { SolverFormValues, OpticalResponsePoint, SweepParameter, LayerMaterial, DispersiveDataPoint } from '@/types/solver';
+import type { SolverFormValues, OpticalResponsePoint, SweepParameter, LayerMaterialProperties, DispersiveDataPoint, NamedMaterial } from '@/types/solver';
 
 // Complex Number Utilities
 type Complex = { re: number; im: number };
@@ -17,7 +17,7 @@ function cmul(a: Complex, b: Complex): Complex {
 }
 function cdiv(a: Complex, b: Complex): Complex {
   const denom_abs_sq = b.re * b.re + b.im * b.im;
-  if (denom_abs_sq === 0) return complex(NaN, NaN);
+  if (denom_abs_sq === 0) return complex(NaN, NaN); // Avoid division by zero
   return complex(
     (a.re * b.re + a.im * b.im) / denom_abs_sq,
     (a.im * b.re - a.re * b.im) / denom_abs_sq
@@ -29,23 +29,20 @@ function cexp(z: Complex): Complex {
     const expRe = Math.exp(z.re);
     return complex(expRe * Math.cos(z.im), expRe * Math.sin(z.im));
 }
-function csin(z: Complex): Complex { // sin(x+iy) = sin(x)cosh(y) + i cos(x)sinh(y)
+function csin(z: Complex): Complex {
     return complex(Math.sin(z.re) * Math.cosh(z.im), Math.cos(z.re) * Math.sinh(z.im));
 }
-function ccos(z: Complex): Complex { // cos(x+iy) = cos(x)cosh(y) - i sin(x)sinh(y)
+function ccos(z: Complex): Complex {
     return complex(Math.cos(z.re) * Math.cosh(z.im), -Math.sin(z.re) * Math.sinh(z.im));
 }
-// Algebraic csqrt to ensure principal root with non-negative real part
-// and Im(sqrt(z)) has same sign as Im(z)
-function csqrt(z: Complex): Complex {
+function csqrt_algebraic(z: Complex): Complex {
     const r = Math.sqrt(z.re * z.re + z.im * z.im); // |z|
-    let phi = Math.atan2(z.im, z.re); // arg(z)
-    // Ensure phi is in (-pi, pi] for principal root, though atan2 usually does this.
-    // The principal root has sqrt(r) * (cos(phi/2) + i sin(phi/2))
-    // This ensures Re(sqrt(z)) >= 0.
-    // If Re(sqrt(z)) == 0, then Im(sqrt(z)) >=0.
-    const sqrt_r = Math.sqrt(r);
-    return complex(sqrt_r * Math.cos(phi / 2), sqrt_r * Math.sin(phi / 2));
+    let s = Math.sqrt((r + z.re) / 2);
+    let t = Math.sqrt((r - z.re) / 2);
+    if (z.im < 0) t = -t;
+    // Ensure real part is non-negative for physical roots
+    if (s < 0) { s = -s; t = -t;} // This case should not be hit if r >= abs(z.re)
+    return complex(s, t);
 }
 
 
@@ -68,16 +65,13 @@ const FP_TOLERANCE = 1e-9; // Floating point tolerance
 // Linear interpolation function for n and k
 function interpolateNK(targetWavelength: number, dispersiveData: DispersiveDataPoint[]): Complex {
   if (!dispersiveData || dispersiveData.length === 0) {
-    // Should not happen if schema validation (min 2 points) is enforced
-    return complex(1.0, 0.0); // Fallback
+    return complex(1.0, 0.0); // Fallback, should not happen with validation
   }
 
-  // Ensure data is sorted by wavelength (already done by form submission processing)
-  // const sortedData = [...dispersiveData].sort((a, b) => a.wavelength - b.wavelength);
+  // Data should already be sorted by wavelength from form submission processing
   const sortedData = dispersiveData;
 
-
-  if (dispersiveData.length === 1) {
+  if (sortedData.length === 1) {
     return complex(sortedData[0].n, sortedData[0].k);
   }
 
@@ -92,8 +86,6 @@ function interpolateNK(targetWavelength: number, dispersiveData: DispersiveDataP
   while (i < sortedData.length - 1 && sortedData[i+1].wavelength < targetWavelength) {
     i++;
   }
-  // Now, sortedData[i].wavelength < targetWavelength <= sortedData[i+1].wavelength
-
   const wl1 = sortedData[i].wavelength;
   const n1 = sortedData[i].n;
   const k1 = sortedData[i].k;
@@ -101,7 +93,7 @@ function interpolateNK(targetWavelength: number, dispersiveData: DispersiveDataP
   const n2 = sortedData[i+1].n;
   const k2 = sortedData[i+1].k;
 
-  if (wl1 === wl2) { // Should not happen if data is sorted and distinct
+  if (Math.abs(wl1 - wl2) < FP_TOLERANCE) { 
       return complex(n1, k1);
   }
 
@@ -122,11 +114,11 @@ export async function calculateOpticalResponse(
   const n_incident_medium_complex = complex(params.incidentMediumRefractiveIndex.n, params.incidentMediumRefractiveIndex.k);
   const n_substrate_medium_complex = complex(params.substrateMediumRefractiveIndex.n, params.substrateMediumRefractiveIndex.k);
   
-  // Layer materials and thicknesses are now separate
-  const internal_layer_materials: LayerMaterial[] = params.layerMaterials;
+  // Create a map for quick lookup of material properties by ID
+  const materialLibraryMap = new Map<string, LayerMaterialProperties>();
+  params.materialLibrary.forEach(mat => materialLibraryMap.set(mat.id, mat.properties));
+
   const internal_layer_thicknesses_nm = params.thickness.map(t => (t < 0 ? 0 : t));
-
-
   const polarization = params.polarization;
 
   let sweepVariableValues: number[] = [];
@@ -168,17 +160,26 @@ export async function calculateOpticalResponse(
     let calculationSucceeded = true;
     let tir_occurred_this_point = false;
 
-
-    // Construct n_list_complex_full dynamically based on current_wavelength_nm
+    // Construct n_list_complex_full dynamically
     const n_list_complex_full: Complex[] = [n_incident_medium_complex];
-    for (let i = 0; i < internal_layer_materials.length; i++) {
-        const material = internal_layer_materials[i];
-        if (material.type === 'constant') {
-            n_list_complex_full.push(complex(material.n, material.k));
-        } else { // dispersive
-            // Interpolate n, k for the current_wavelength_nm
-            n_list_complex_full.push(interpolateNK(current_wavelength_nm, material.data));
+    for (let i = 0; i < params.numLayers; i++) {
+        const layerSelection = params.layerMaterials[i];
+        if (!layerSelection || !layerSelection.materialId) {
+            calculationSucceeded = false; break; // Should be caught by Zod validation
         }
+        const materialProps = materialLibraryMap.get(layerSelection.materialId);
+        if (!materialProps) {
+            calculationSucceeded = false; break; // Should be caught by Zod validation
+        }
+        if (materialProps.type === 'constant') {
+            n_list_complex_full.push(complex(materialProps.n, materialProps.k));
+        } else { // dispersive
+            n_list_complex_full.push(interpolateNK(current_wavelength_nm, materialProps.data));
+        }
+    }
+    if (!calculationSucceeded) {
+        results.push({ xValue: currentXValueForPoint, reflectance: 0.0, transmittance: 0.0, absorptance: 0.0 });
+        continue;
     }
     n_list_complex_full.push(n_substrate_medium_complex);
     
@@ -187,7 +188,6 @@ export async function calculateOpticalResponse(
         ...internal_layer_thicknesses_nm,
         Infinity  // Substrate medium thickness
     ];
-
 
     // Step 1: Snell's Law (using real parts of n for angles)
     const angles_rad_real: number[] = [incident_angle_rad];
@@ -205,17 +205,18 @@ export async function calculateOpticalResponse(
                 angle_i_rad = NaN; 
             } else {
                 const sin_theta_prev = Math.sin(angles_rad_real[i - 1]);
-                if (Math.abs(n_curr_real) < FP_TOLERANCE) {
-                    angle_i_rad = (Math.abs(n_prev_real * sin_theta_prev) < FP_TOLERANCE) ? 0 : NaN;
+                if (Math.abs(n_curr_real) < FP_TOLERANCE) { // Target medium is effectively vacuum or perfect conductor
+                    angle_i_rad = (Math.abs(n_prev_real * sin_theta_prev) < FP_TOLERANCE) ? 0 : NaN; // Only 0 if incident is also 0 or normal
                 } else {
                     let arg_asin = (n_prev_real / n_curr_real) * sin_theta_prev;
                     if (isNaN(arg_asin)) {
                         angle_i_rad = NaN;
-                    } else if (Math.abs(arg_asin) > 1.0 + FP_TOLERANCE) {
+                    } else if (Math.abs(arg_asin) > 1.0 + FP_TOLERANCE) { // Check against 1.0 + tolerance
                         tir_occurred_this_point = true;
                         angle_i_rad = NaN; 
                     } else {
-                        arg_asin = Math.max(-1.0, Math.min(1.0, arg_asin)); // Clamp before asin
+                        // Clamp arg_asin to avoid Math.asin(slightly_>_1) returning NaN due to precision
+                        arg_asin = Math.max(-1.0, Math.min(1.0, arg_asin));
                         angle_i_rad = Math.asin(arg_asin);
                     }
                 }
@@ -223,21 +224,21 @@ export async function calculateOpticalResponse(
             
             if (isNaN(angle_i_rad)) { 
                 calculationSucceeded = false; 
-                break; 
+                // No break here, allow NaN to propagate; tir_occurred_this_point will handle outcome
             }
             angles_rad_real.push(angle_i_rad);
         }
     }
 
-    if (!calculationSucceeded) {
-        results.push({ 
-            xValue: currentXValueForPoint, 
-            reflectance: tir_occurred_this_point ? 1.0 : 0.0, 
-            transmittance: 0.0, 
-            absorptance: tir_occurred_this_point ? 0.0 : 0.0
-        });
+    if (!calculationSucceeded && tir_occurred_this_point) {
+        results.push({ xValue: currentXValueForPoint, reflectance: 1.0, transmittance: 0.0, absorptance: 0.0 });
         continue;
     }
+    if (!calculationSucceeded) {
+        results.push({ xValue: currentXValueForPoint, reflectance: 0.0, transmittance: 0.0, absorptance: 0.0 });
+        continue;
+    }
+
 
     // Step 2: Fresnel Coefficients
     const r_coeffs_complex: Complex[] = [];
@@ -247,17 +248,18 @@ export async function calculateOpticalResponse(
         const n1_complex = n_list_complex_full[i];
         const n2_complex = n_list_complex_full[i + 1];
         const theta1_real = angles_rad_real[i];
-        const theta2_real = (i + 1 < angles_rad_real.length) ? angles_rad_real[i + 1] : NaN; 
+        const theta2_real = angles_rad_real[i + 1]; 
         
-        if (isNaN(theta1_real) || (i < n_list_complex_full.length - 2 && isNaN(theta2_real) && tir_occurred_this_point)) {
-             // If theta2 is NaN due to TIR at this interface, we might still want r_ij if n1,n2,theta1 are valid.
-             // However, the Python code implies propagation of NaN if any angle is NaN.
-             // For TIR, r_ij should be complex with magnitude 1, t_ij should effectively be 0 for power.
+        if (isNaN(theta1_real) || isNaN(theta2_real)) {
+             // If TIR occurred, theta2_real might be NaN. Fresnel coeffs might still be calculable if n1,n2,theta1 are fine
+             // but this path is taken if `calculationSucceeded` is true, which means angles were not NaN.
+             // This implies we are not in a TIR case handled by the previous block.
+             // A NaN angle here means something else went wrong, or the initial incident angle was NaN.
+             calculationSucceeded = false; break;
         }
-        if (isNaN(theta1_real)) { calculationSucceeded = false; break; }
 
         const cos_theta1 = Math.cos(theta1_real);
-        const cos_theta2 = isNaN(theta2_real) ? NaN : Math.cos(theta2_real); // Will be NaN if theta2 is NaN (e.g. TIR)
+        const cos_theta2 = Math.cos(theta2_real);
         
         let r_ij: Complex, t_ij: Complex;
 
@@ -267,51 +269,33 @@ export async function calculateOpticalResponse(
             const den_rt = cadd(n1_cos_t2, n2_cos_t1); 
             if (cabsSq(den_rt) < FP_TOLERANCE * FP_TOLERANCE) { calculationSucceeded = false; break; }
             r_ij = cdiv(csub(n2_cos_t1, n1_cos_t2), den_rt);
-            const num_t = cmulReal(cmul(n1_complex, complex(cos_theta1)), 2);
-            t_ij = cdiv(num_t, den_rt);
+            const num_t = cmulReal(cmul(n1_complex, complex(cos_theta1)), 2); // (2 * n1 * cos_theta1)
+            t_ij = cdiv(num_t, den_rt); // This should be (2*n1*cos_theta1)/(n2*cos_theta1 + n1*cos_theta2)
         } else { // TE / S-polarization
             const n1_cos_t1 = cmul(n1_complex, complex(cos_theta1));
             const n2_cos_t2 = cmul(n2_complex, complex(cos_theta2));
             const den_rt = cadd(n1_cos_t1, n2_cos_t2);
             if (cabsSq(den_rt) < FP_TOLERANCE * FP_TOLERANCE) { calculationSucceeded = false; break; }
             r_ij = cdiv(csub(n1_cos_t1, n2_cos_t2), den_rt);
-            t_ij = cdiv(cmulReal(n1_cos_t1, 2), den_rt); 
+            t_ij = cdiv(cmulReal(n1_cos_t1, 2), den_rt); // (2 * n1 * cos_theta1) / (n1*cos_theta1 + n2*cos_theta2)
         }
 
         if (isNaN(r_ij.re) || isNaN(r_ij.im) || isNaN(t_ij.re) || isNaN(t_ij.im)) {
-             if(tir_occurred_this_point && i < n_list_complex_full.length -2) {
-                // For TIR, r_ij should be defined, t_ij might be complex but not lead to power transmission
-             } else {
-                calculationSucceeded = false; break;
-             }
+             calculationSucceeded = false; break;
         }
         r_coeffs_complex.push(r_ij);
         t_coeffs_complex.push(t_ij);
     }
     
-    if (!calculationSucceeded && !tir_occurred_this_point) { // If failed for reasons other than TIR at the fresnel stage
-        results.push({ 
-            xValue: currentXValueForPoint, 
-            reflectance: 0.0,
-            transmittance: 0.0, 
-            absorptance: 0.0 
-        });
-        continue;
-    }
-     if (!calculationSucceeded && tir_occurred_this_point) { // If failed because of TIR at fresnel stage
-        results.push({ 
-            xValue: currentXValueForPoint, 
-            reflectance: 1.0,
-            transmittance: 0.0, 
-            absorptance: 0.0 
-        });
+    if (!calculationSucceeded) { 
+        results.push({ xValue: currentXValueForPoint, reflectance: (tir_occurred_this_point ? 1.0:0.0), transmittance: 0.0, absorptance: (tir_occurred_this_point ? 0.0:0.0) });
         continue;
     }
 
 
     // Step 3: Phase factors
-    const delta_phases_complex: Complex[] = [C_ZERO]; 
-    for (let i = 1; i < d_list_nm_full.length - 1; i++) { 
+    const delta_phases_complex: Complex[] = [C_ZERO]; // Phase for incident medium (d[0]=inf) is not used in P matrix
+    for (let i = 1; i < d_list_nm_full.length - 1; i++) { // Iterate through actual layers
         const d_nm_layer = d_list_nm_full[i];
         if (d_nm_layer < 0) { calculationSucceeded = false; break; } 
         if (Math.abs(d_nm_layer) < FP_TOLERANCE) { 
@@ -324,6 +308,7 @@ export async function calculateOpticalResponse(
         if (isNaN(theta_layer_real)) { calculationSucceeded = false; break; } 
         
         const cos_theta_layer = Math.cos(theta_layer_real);
+        // Phase: k0 * N_layer * d_layer * cos(theta_layer) = (2*pi/lambda) * N_layer * d_layer * cos(theta_layer)
         const term_N_cos_d = cmulReal(cmul(N_layer_complex, complex(cos_theta_layer)), d_nm_layer);
         const num = cmulReal(term_N_cos_d, 2 * PI);
         if (Math.abs(current_wavelength_nm) < FP_TOLERANCE) { calculationSucceeded = false; break; }
@@ -334,21 +319,28 @@ export async function calculateOpticalResponse(
     }
         
     if (!calculationSucceeded) { 
-        results.push({ 
-            xValue: currentXValueForPoint, 
-            reflectance: tir_occurred_this_point ? 1.0 : 0.0,
-            transmittance: 0.0, 
-            absorptance: tir_occurred_this_point ? 0.0 : 0.0
-        });
+        results.push({ xValue: currentXValueForPoint, reflectance: (tir_occurred_this_point ? 1.0:0.0), transmittance: 0.0, absorptance: (tir_occurred_this_point ? 0.0:0.0) });
         continue;
     }
 
     // Step 4: Transfer Matrix Assembly
     let M_total: Matrix2x2C = [[...M_IDENTITY[0]], [...M_IDENTITY[1]]];
 
+    // The P matrix loop should go up to len(r_coeffs_complex) which is num_interfaces = num_layers + 1
+    // Delta phases correspond to propagation *within* layers.
+    // The Python code's P matrix loop uses delta[i] with r[i]. delta[0] is 0 (incident medium phase factor to first interface).
+    // delta[k] is for layer k. r[k] is for interface k -> k+1.
+    // So, when building P for interface k->k+1 (using r[k]), the phase factor should be for layer k (delta[k]).
+    
     for (let k_idx = 0; k_idx < r_coeffs_complex.length; k_idx++) { 
         const r_i = r_coeffs_complex[k_idx]; 
+        // delta_phases_complex[0] is for the incident medium (effectively d=0 before first actual layer)
+        // delta_phases_complex[k_idx] refers to the phase accumulated *before* interface k_idx, if k_idx > 0.
+        // Python's delta[i] corresponds to layer i. r[i] is for interface i -> i+1.
+        // P matrix uses phase factor of the medium *from which* light approaches the interface.
+        // So for r_coeffs_complex[k_idx] (interface k_idx -> k_idx+1), we use delta_phases_complex[k_idx]
         const delta_i_complex = (k_idx < delta_phases_complex.length) ? delta_phases_complex[k_idx] : C_ZERO;
+
 
         if (isNaN(r_i.re) || isNaN(r_i.im) || isNaN(delta_i_complex.re) || isNaN(delta_i_complex.im)) {
             calculationSucceeded = false; break;
@@ -366,12 +358,7 @@ export async function calculateOpticalResponse(
     }
 
     if (!calculationSucceeded) {
-        results.push({ 
-            xValue: currentXValueForPoint, 
-            reflectance: tir_occurred_this_point ? 1.0 : 0.0,
-            transmittance: 0.0, 
-            absorptance: tir_occurred_this_point ? 0.0 : 0.0
-        });
+        results.push({ xValue: currentXValueForPoint, reflectance: (tir_occurred_this_point ? 1.0:0.0), transmittance: 0.0, absorptance: (tir_occurred_this_point ? 0.0:0.0) });
         continue;
     }
     
@@ -401,15 +388,19 @@ export async function calculateOpticalResponse(
 
     let power_transfer_ratio_real = NaN;
     if (isNaN(theta_inc_real) || isNaN(n_inc_val_real) || Math.abs(n_inc_val_real) < FP_TOLERANCE || Math.abs(Math.cos(theta_inc_real)) < FP_TOLERANCE ) {
-        power_transfer_ratio_real = 0.0; 
+        power_transfer_ratio_real = 0.0; // Incident medium cannot carry power as described
     } else {
-        const cos_theta_sub_real = Math.cos(theta_sub_real); // Can be NaN if theta_sub_real is NaN
-        if (isNaN(theta_sub_real) || isNaN(n_sub_val_real) || Math.abs(n_sub_val_real) < FP_TOLERANCE || cos_theta_sub_real < FP_TOLERANCE) {
-            power_transfer_ratio_real = 0.0; 
+        const cos_theta_sub_real = isNaN(theta_sub_real) ? NaN : Math.cos(theta_sub_real);
+        if (isNaN(cos_theta_sub_real) || isNaN(n_sub_val_real) || Math.abs(n_sub_val_real) < FP_TOLERANCE || cos_theta_sub_real < FP_TOLERANCE) { // Check cos_theta_sub_real < FP_TOLERANCE
+            power_transfer_ratio_real = 0.0; // Substrate cannot accept power or TIR occurred
         } else {
             const n_incident_eff_real = n_inc_val_real * Math.cos(theta_inc_real); 
             const n_substrate_eff_real = n_sub_val_real * cos_theta_sub_real; 
-            power_transfer_ratio_real = n_substrate_eff_real / n_incident_eff_real;
+            if (Math.abs(n_incident_eff_real) < FP_TOLERANCE) { // Avoid division by zero
+                power_transfer_ratio_real = 0.0;
+            } else {
+                 power_transfer_ratio_real = n_substrate_eff_real / n_incident_eff_real;
+            }
         }
     }
     power_transfer_ratio_real = (isNaN(power_transfer_ratio_real) || power_transfer_ratio_real < 0) ? 0 : power_transfer_ratio_real;
@@ -423,7 +414,7 @@ export async function calculateOpticalResponse(
 
     let R_calc: number, T_calc: number, A_calc: number;
 
-    if (tir_occurred_this_point) { // Prioritize TIR detection from Snell's Law
+    if (tir_occurred_this_point) { 
         R_calc = 1.0;
         T_calc = 0.0;
     } else {
@@ -437,8 +428,9 @@ export async function calculateOpticalResponse(
     if (R_calc + T_calc > 1.0 + FP_TOLERANCE) {
         if (R_calc >= 1.0 - FP_TOLERANCE) {
             T_calc = 0.0;
-            R_calc = 1.0;
+            R_calc = 1.0; // Ensure R doesn't exceed 1 if T is brought to 0
         } else { 
+             // This case suggests R is not ~1, so T can be adjusted.
             T_calc = 1.0 - R_calc;
         }
     }
@@ -446,10 +438,11 @@ export async function calculateOpticalResponse(
     A_calc = 1.0 - R_calc - T_calc;
     A_calc = Math.max(0, Math.min(1, A_calc)); 
 
-    T_calc = 1.0 - R_calc - A_calc;
-    T_calc = Math.max(0, Math.min(1, T_calc)); 
+    // Final consistency check due to absorptance calculation
+    T_calc = 1.0 - R_calc - A_calc; 
+    T_calc = Math.max(0, Math.min(1, T_calc));
 
-    if (tir_occurred_this_point) { // Final override for TIR
+    if (tir_occurred_this_point) { // Final override for TIR if Snell's law said so
         R_calc = 1.0;
         T_calc = 0.0;
         A_calc = 0.0;
@@ -465,3 +458,4 @@ export async function calculateOpticalResponse(
   return { data: results, sweepParameter };
 }
 
+    
