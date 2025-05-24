@@ -30,7 +30,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     mode: 'onBlur',
   });
 
-  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting } } = form; // Renamed to avoid conflict
+  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting } } = form;
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
@@ -48,7 +48,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
-    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) { 
+    if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) {
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
       if (refractiveIndexFields.length > 0) setValue("refractiveIndex", [], { shouldValidate: true, shouldDirty: true });
       return;
@@ -57,7 +57,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
-        appendThickness(100, { shouldFocus: false }); 
+        appendThickness(100, { shouldFocus: false });
       }
     } else if (parsedNumLayers < currentThicknessLength) {
       for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
@@ -69,7 +69,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     if (parsedNumLayers > currentRefractiveIndexLength) {
       for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
         appendRefractiveIndex(
-          { n: 1.0, k: 0.0 }, 
+          { n: 1.0, k: 0.0 },
           { shouldFocus: false }
         );
       }
@@ -80,10 +80,8 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     }
   }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, setValue]);
 
-  // This is the function that react-hook-form's handleSubmit will call with validated data.
-  // The actual submission logic (including reCAPTCHA) is in the `onSubmit` prop from `HomePage`.
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
-    onSubmit(data); // Call the orchestrating function from HomePage
+    onSubmit(data);
   };
 
   return (
@@ -94,8 +92,8 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={formHandleSubmit(handleValidatedFormSubmit)} className="space-y-6"> {/* Use react-hook-form's handleSubmit */}
-            
+          <form onSubmit={formHandleSubmit(handleValidatedFormSubmit)} className="space-y-6">
+
             <FormField
               control={control}
               name="sweepType"
@@ -190,7 +188,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
             <Separator />
             <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={16}/>Stack & Common Optical Properties</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={control}
                 name="numLayers"
@@ -226,7 +224,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 )}
               />
             </div>
-            
+
             <Separator />
 
             {sweepType === 'wavelength' && (
@@ -324,7 +322,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             )}
 
 
-            {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && ( 
+            {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
@@ -385,7 +383,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 ))}
               </>
             )}
-            
+
             {recaptchaSiteKey && (
               <div className="my-6 flex justify-center md:justify-start">
                 <ReCAPTCHA
@@ -405,3 +403,5 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     </Card>
   );
 }
+
+    
