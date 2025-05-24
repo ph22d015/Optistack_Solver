@@ -2,9 +2,9 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
-import type { SolverFormValues } from '@/types/solver';
-import { SolverFormSchema, defaultSolverFormValues } from '@/types/solver';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import type { SolverFormValues, LayerMaterial, DispersiveDataPoint } from '@/types/solver';
+import { SolverFormSchema, defaultSolverFormValues, defaultLayerMaterialConstant, defaultLayerMaterialDispersive } from '@/types/solver';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma } from 'lucide-react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon } from 'lucide-react';
 import React, { useEffect, type RefObject } from 'react';
 import ReCAPTCHA from 'react-google-recaptcha';
 
@@ -30,7 +30,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     mode: 'onBlur',
   });
 
-  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting } } = form;
+  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting, errors } } = form;
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
@@ -40,24 +40,27 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     name: 'thickness',
   });
 
-  const { fields: refractiveIndexFields, append: appendRefractiveIndex, remove: removeRefractiveIndex } = useFieldArray({
+  // useFieldArray for layerMaterials
+  const { fields: layerMaterialFields, append: appendLayerMaterial, remove: removeLayerMaterial, update: updateLayerMaterial } = useFieldArray({
     control,
-    name: 'refractiveIndex',
+    name: 'layerMaterials',
   });
+
 
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
     if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) {
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
-      if (refractiveIndexFields.length > 0) setValue("refractiveIndex", [], { shouldValidate: true, shouldDirty: true });
+      if (layerMaterialFields.length > 0) setValue("layerMaterials", [], { shouldValidate: true, shouldDirty: true });
       return;
     }
 
+    // Sync thickness array
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
-        appendThickness(100, { shouldFocus: false });
+        appendThickness(100, { shouldFocus: false }); // Default thickness 100nm
       }
     } else if (parsedNumLayers < currentThicknessLength) {
       for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
@@ -65,24 +68,69 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       }
     }
 
-    const currentRefractiveIndexLength = refractiveIndexFields.length;
-    if (parsedNumLayers > currentRefractiveIndexLength) {
-      for (let i = currentRefractiveIndexLength; i < parsedNumLayers; i++) {
-        appendRefractiveIndex(
-          { n: 1.0, k: 0.0 },
-          { shouldFocus: false }
-        );
+    // Sync layerMaterials array
+    const currentLayerMaterialLength = layerMaterialFields.length;
+    if (parsedNumLayers > currentLayerMaterialLength) {
+      for (let i = currentLayerMaterialLength; i < parsedNumLayers; i++) {
+        appendLayerMaterial({ ...defaultLayerMaterialConstant }, { shouldFocus: false });
       }
-    } else if (parsedNumLayers < currentRefractiveIndexLength) {
-      for (let i = currentRefractiveIndexLength - 1; i >= parsedNumLayers; i--) {
-        removeRefractiveIndex(i);
+    } else if (parsedNumLayers < currentLayerMaterialLength) {
+      for (let i = currentLayerMaterialLength - 1; i >= parsedNumLayers; i--) {
+        removeLayerMaterial(i);
       }
     }
-  }, [numLayers, appendThickness, removeThickness, appendRefractiveIndex, removeRefractiveIndex, thicknessFields.length, refractiveIndexFields.length, setValue]);
+  }, [numLayers, appendThickness, removeThickness, appendLayerMaterial, removeLayerMaterial, thicknessFields.length, layerMaterialFields.length, setValue]);
+
 
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
-    onSubmit(data);
+    // Ensure dispersive data is sorted by wavelength before submission
+    const processedData = {
+      ...data,
+      layerMaterials: data.layerMaterials.map(material => {
+        if (material.type === 'dispersive') {
+          return {
+            ...material,
+            data: [...material.data].sort((a, b) => a.wavelength - b.wavelength),
+          };
+        }
+        return material;
+      }),
+    };
+    onSubmit(processedData);
   };
+  
+  // Helper for dispersive data points within each layer
+  // We need to manage field arrays for each layer's dispersive data
+  // This is complex because useFieldArray is typically used at a fixed path.
+  // For simplicity, we directly manipulate the form state for dispersive data points for now
+  // or use a sub-component. Let's use a sub-component approach later if needed.
+  // For now, a simple add/remove will modify the form's 'layerMaterials[index].data' array.
+
+  const handleMaterialTypeChange = (layerIndex: number, newType: 'constant' | 'dispersive') => {
+    const currentMaterial = watch(`layerMaterials.${layerIndex}`);
+    if (newType === 'constant' && currentMaterial.type !== 'constant') {
+      updateLayerMaterial(layerIndex, { ...defaultLayerMaterialConstant });
+    } else if (newType === 'dispersive' && currentMaterial.type !== 'dispersive') {
+      updateLayerMaterial(layerIndex, { ...defaultLayerMaterialDispersive });
+    }
+  };
+  
+  const addDispersivePoint = (layerIndex: number) => {
+    const currentMaterial = watch(`layerMaterials.${layerIndex}`);
+    if (currentMaterial.type === 'dispersive') {
+      const newDataArray = [...currentMaterial.data, { wavelength: Math.max(...currentMaterial.data.map(p => p.wavelength), 0) + 50 , n: 1.5, k: 0.0 }];
+      updateLayerMaterial(layerIndex, { ...currentMaterial, data: newDataArray });
+    }
+  };
+
+  const removeDispersivePoint = (layerIndex: number, pointIndex: number) => {
+    const currentMaterial = watch(`layerMaterials.${layerIndex}`);
+    if (currentMaterial.type === 'dispersive' && currentMaterial.data.length > 2) { // Keep at least 2 points
+      const newDataArray = currentMaterial.data.filter((_, idx) => idx !== pointIndex);
+      updateLayerMaterial(layerIndex, { ...currentMaterial, data: newDataArray });
+    }
+  };
+
 
   return (
     <Card className="w-full shadow-lg">
@@ -196,7 +244,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                   <FormItem>
                     <FormLabel className="flex items-center gap-1"><Layers size={14} />Number of Internal Layers</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
+                      <Input type="number" placeholder="e.g., 1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} min="0" max="20" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -321,64 +369,174 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
               </>
             )}
 
-
             {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
-                {Array.from({ length: numLayers }).map((_, index) => (
-                  <div key={index} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
+                {layerMaterialFields.map((layerField, index) => (
+                  <div key={layerField.id} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
                     <h4 className="font-semibold text-sm text-primary">Layer {index + 1}</h4>
-                    <FormField
-                      control={control}
-                      name={`thickness.${index}`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-1"><Ruler size={14} />Thickness (nm)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
-                            value={field.value ?? ''}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
+                      <FormField
                         control={control}
-                        name={`refractiveIndex.${index}.n`}
+                        name={`thickness.${index}`}
                         render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-1"><Ruler size={14} />Thickness (nm)</FormLabel>
                             <FormControl>
-                                <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
-                                value={field.value ?? ''}
-                                onChange={e => field.onChange(parseFloat(e.target.value))}
-                                />
+                              <Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field}
+                              value={field.value ?? ''}
+                              onChange={e => field.onChange(parseFloat(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
-                            </FormItem>
+                          </FormItem>
                         )}
-                        />
-                        <FormField
-                        control={control}
-                        name={`refractiveIndex.${index}.k`}
-                        render={({ field }) => (
+                      />
+                       <FormField
+                          control={control}
+                          name={`layerMaterials.${index}.type`}
+                          render={({ field: typeField }) => (
                             <FormItem>
-                            <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
-                            <FormControl>
-                                <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
-                                value={field.value ?? ''}
-                                onChange={e => field.onChange(parseFloat(e.target.value))}
-                                />
-                            </FormControl>
-                            <FormMessage />
+                              <FormLabel className="flex items-center gap-1"><Edit3 size={14}/>Material Type</FormLabel>
+                              <Select 
+                                onValueChange={(value: 'constant' | 'dispersive') => handleMaterialTypeChange(index, value)} 
+                                defaultValue={typeField.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select material type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="constant">Constant n & k</SelectItem>
+                                  <SelectItem value="dispersive">Dispersive (Table)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
                             </FormItem>
-                        )}
+                          )}
                         />
                     </div>
+                    
+                    {watch(`layerMaterials.${index}.type`) === 'constant' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <FormField
+                          control={control}
+                          name={`layerMaterials.${index}.n`}
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel className="flex items-center gap-1"><Gem size={14} />Refractive Index (n)</FormLabel>
+                              <FormControl>
+                                  <Input type="number" step="0.01" placeholder="e.g., 1.0" {...field}
+                                  value={field.value ?? ''}
+                                  onChange={e => field.onChange(parseFloat(e.target.value))}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                          />
+                          <FormField
+                          control={control}
+                          name={`layerMaterials.${index}.k`}
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel className="flex items-center gap-1"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
+                              <FormControl>
+                                  <Input type="number" step="0.001" placeholder="e.g., 0.0" {...field}
+                                  value={field.value ?? ''}
+                                  onChange={e => field.onChange(parseFloat(e.target.value))}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                          />
+                      </div>
+                    )}
+
+                    {watch(`layerMaterials.${index}.type`) === 'dispersive' && (
+                      <div className="mt-4 space-y-3 p-3 border rounded-md bg-background/30">
+                        <FormField
+                          control={control}
+                          name={`layerMaterials.${index}.materialName`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-1"><Edit3 size={14} />Material Name (Optional)</FormLabel>
+                              <FormControl>
+                                <Input type="text" placeholder="e.g., SiO2" {...field} value={field.value ?? ''} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex justify-between items-center mb-2">
+                            <FormLabel className="flex items-center gap-1"><TableIcon size={14} />Dispersion Data (Wavelength, n, k)</FormLabel>
+                            <Button type="button" size="sm" variant="outline" onClick={() => addDispersivePoint(index)}>
+                                <PlusCircle size={14} className="mr-1" /> Add Point
+                            </Button>
+                        </div>
+                        {(watch(`layerMaterials.${index}.data`) || []).map((point, pointIndex) => (
+                          <div key={`layer-${index}-point-${pointIndex}`} className="grid grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
+                            <FormField
+                              control={control}
+                              name={`layerMaterials.${index}.data.${pointIndex}.wavelength`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">λ (nm)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" step="0.1" placeholder="Wavelength" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={control}
+                              name={`layerMaterials.${index}.data.${pointIndex}.n`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">n</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" step="0.001" placeholder="n" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={control}
+                              name={`layerMaterials.${index}.data.${pointIndex}.k`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs">k</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" step="0.001" placeholder="k" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="mt-4 text-destructive hover:text-destructive/80" 
+                              onClick={() => removeDispersivePoint(index, pointIndex)}
+                              disabled={(watch(`layerMaterials.${index}.data`) || []).length <= 2}
+                            >
+                              <Trash2 size={16} />
+                              <span className="sr-only">Remove Point</span>
+                            </Button>
+                          </div>
+                        ))}
+                        {/* Display Zod error for the whole data array if needed */}
+                        {errors.layerMaterials?.[index]?.data?.message && (
+                            <p className="text-sm font-medium text-destructive">{errors.layerMaterials?.[index]?.data?.message}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </>
@@ -403,5 +561,4 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     </Card>
   );
 }
-
     
