@@ -105,7 +105,7 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
               domain={yDomainK as [number, number]}
               tickFormatter={(value) => typeof value === 'number' ? value.toFixed(3) : value}
               label={{ value: chartConfig.k.label, angle: -90, position: 'insideRight', offset: -15 }}
-              stroke="green" // Hardcoded color for 'k' line
+              stroke="red" // Hardcoded color for 'k' line (changed from green to red)
             />
             <ChartTooltip
               cursor={true}
@@ -139,7 +139,7 @@ export default function MaterialDataChart({ data, materialName }: MaterialDataCh
               yAxisId="right"
               dataKey="k"
               type="monotone"
-              stroke="green" // Hardcoded color for 'k' line
+              stroke="red" // Hardcoded color for 'k' line (changed from green to red)
               strokeWidth={2}
               dot={false}
               name={chartConfig.k.label}
