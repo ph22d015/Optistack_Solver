@@ -27,13 +27,13 @@ interface InputFormProps {
   recaptchaSiteKey: string;
 }
 
-const DEFAULT_DISPERSIVE_POINTS_COUNT = 2; // Show table if <= this many points
+const DEFAULT_DISPERSIVE_POINTS_COUNT = 2; 
 
 export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }: InputFormProps) {
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur',
+    mode: 'onBlur', // Can change to 'onChange' for more immediate feedback or 'onSubmit'
   });
   const { toast } = useToast();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -87,7 +87,8 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     const currentLayerMaterialSelectionLength = layerMaterialFields.length;
     if (parsedNumLayers > currentLayerMaterialSelectionLength) {
       for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
-        appendLayerMaterialSelection({ materialId: materialLibrary.length > 0 ? materialLibrary[0].id : 'default-air' }, { shouldFocus: false });
+        const defaultMatIdForNewLayer = materialLibrary && materialLibrary.length > 0 ? materialLibrary[0].id : '';
+        appendLayerMaterialSelection({ materialId: defaultMatIdForNewLayer }, { shouldFocus: false });
       }
     } else if (parsedNumLayers < currentLayerMaterialSelectionLength) {
       for (let i = currentLayerMaterialSelectionLength - 1; i >= parsedNumLayers; i--) {
@@ -98,6 +99,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
 
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
+    console.log("Form validation successful, submitting data:", data);
     const processedData = {
       ...data,
       materialLibrary: data.materialLibrary.map(material => {
@@ -106,7 +108,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             ...material,
             properties: {
               ...material.properties,
-              // Ensure data is sorted by wavelength before submission
               data: [...material.properties.data].sort((a, b) => a.wavelength - b.wavelength),
             }
           };
@@ -116,7 +117,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     };
     onSubmit(processedData);
   };
-
+  
   const handleMaterialPropertyTypeChange = (libraryMaterialIndex: number, newType: 'constant' | 'dispersive') => {
     const currentMaterialName = watch(`materialLibrary.${libraryMaterialIndex}.name`);
     const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
@@ -133,7 +134,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     if (currentProperties.type === 'dispersive') {
       const currentData = currentProperties.data || [];
       const newDataArray = [...currentData, { wavelength: Math.max(...currentData.map(p => p.wavelength), 0) + 50 , n: 1.5, k: 0.0 }];
-      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray);
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray, {shouldValidate: true, shouldDirty: true});
     }
   };
 
@@ -141,14 +142,14 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
     if (currentProperties.type === 'dispersive' && currentProperties.data && currentProperties.data.length > DEFAULT_DISPERSIVE_POINTS_COUNT) {
       const newDataArray = currentProperties.data.filter((_, idx) => idx !== pointIndex);
-      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray);
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray, {shouldValidate: true, shouldDirty: true});
     } else {
       toast({ title: "Minimum Points", description: `At least ${DEFAULT_DISPERSIVE_POINTS_COUNT} data points are required for manual editing.`, variant: "default"});
     }
   };
   
   const clearAndEditManually = (libraryMaterialIndex: number) => {
-    setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, [...defaultLayerMaterialPropertiesDispersive.data]); // Reset to default 2 points
+    setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, [...defaultLayerMaterialPropertiesDispersive.data], {shouldValidate: true, shouldDirty: true});
     toast({ title: "Data Cleared", description: "Dispersive data reset to default. You can now edit manually or upload a new file."});
   };
 
@@ -185,7 +186,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       }
       points.sort((a, b) => a.wavelength - b.wavelength);
 
-      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, points);
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, points, {shouldValidate: true, shouldDirty: true});
       toast({ title: "File Processed", description: `${points.length} data points loaded for material "${watch(`materialLibrary.${libraryMaterialIndex}.name`)}".` });
     };
     reader.onerror = () => toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
@@ -200,21 +201,20 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       setPlottingMaterialName(material.name);
       setIsMaterialPlotDialogOpen(true);
     } else {
-      toast({ title: "No Data to Plot", description: "Dispersive data is not available for this material.", variant: "default"});
+      toast({ title: "No Data to Plot", description: "Dispersive data is not available for this material or material type is not dispersive.", variant: "default"});
     }
   };
-
 
   return (
     <>
     <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-2xl mb-2"><Sigma size={24} /> Input Parameters</CardTitle>
-        <CardDescription className="mb-2">Define the multilayer stack, surrounding media, optical, and sweep properties.</CardDescription>
+        <CardDescription>Define the multilayer stack, surrounding media, optical, and sweep properties.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={formHandleSubmit(handleValidatedFormSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(handleValidatedFormSubmit)} className="space-y-8">
 
             {/* --- Material Library Section --- */}
             <div className="space-y-4 p-4 border rounded-md shadow-sm bg-card/60">
@@ -229,7 +229,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 {libraryMaterialFields.map((libraryField, libIndex) => {
                     const currentMaterialProperties = watch(`materialLibrary.${libIndex}.properties`);
                     const dispersiveDataPoints = currentMaterialProperties.type === 'dispersive' ? currentMaterialProperties.data : [];
-                    // Show table if dispersive and <= 2 points, or not dispersive (always show n/k for constant)
                     const showDispersiveTableInputs = currentMaterialProperties.type === 'dispersive' && (!dispersiveDataPoints || dispersiveDataPoints.length <= DEFAULT_DISPERSIVE_POINTS_COUNT);
 
                     return (

@@ -25,7 +25,6 @@ export default function HomePage() {
   const handleFormSubmit = async (data: SolverFormValues) => {
     if (!siteKey) {
       // If siteKey is not configured, proceed without reCAPTCHA.
-      // In a production app, you might want to be stricter and show an error or disable the form.
       console.warn("ReCAPTCHA site key not configured. Skipping verification.");
     } else {
       const token = recaptchaRef.current?.getValue();
@@ -52,6 +51,7 @@ export default function HomePage() {
 
     startTransition(async () => {
       try {
+        console.log("Calculating optical response with data:", data);
         const calculationOutput = await calculateOpticalResponse(data);
         
         setResults({ data: calculationOutput.data, sweepParameter: calculationOutput.sweepParameter });
@@ -61,7 +61,7 @@ export default function HomePage() {
           description: "Optical response has been calculated.",
         });
       } catch (error) {
-        console.error("Calculation error:", error);
+        console.error("Calculation error in HomePage:", error);
         toast({
           title: "Calculation Error",
           description: error instanceof Error ? error.message : "An unexpected error occurred during calculation.",
@@ -106,7 +106,7 @@ export default function HomePage() {
           onSubmit={handleFormSubmit}
           isLoading={isLoading || isPending}
           recaptchaRef={recaptchaRef}
-          recaptchaSiteKey={siteKey || ""} // Pass siteKey, default to empty string if undefined
+          recaptchaSiteKey={siteKey || ""} 
         />
         <ResultsDisplay results={results} isLoading={isLoading || isPending} />
       </div>
