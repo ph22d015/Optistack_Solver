@@ -6,7 +6,7 @@ const ConstantMaterialSchema = z.object({
   type: z.literal('constant'),
   n: z.coerce.number().min(0, "n must be non-negative").default(1.0),
   k: z.coerce.number().min(0, "k must be non-negative").default(0.0),
-  materialName: z.string().optional(), // Keep for consistency if user wants to name even constant ones
+  materialName: z.string().optional(),
 }).describe("Material with fixed n and k values.");
 
 const DispersiveDataPointSchema = z.object({
@@ -35,7 +35,7 @@ export const NamedMaterialSchema = z.object({
 });
 export type NamedMaterial = z.infer<typeof NamedMaterialSchema>;
 
-
+// This schema is used INTERNALLY by the calculation logic for resolved n/k values, not directly in the form for incident/substrate anymore.
 export const ComplexRefractiveIndexSchema = z.object({
   n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"),
   k: z.coerce.number().min(0, "k must be non-negative").describe("Extinction coefficient (imaginary part)"),
@@ -46,12 +46,12 @@ export const ComplexRefractiveIndexSchema = z.object({
 
 export const SolverFormSchema = z.object({
   sweepType: z.enum(['wavelength', 'angle']).default('wavelength').describe("Parameter to sweep in the calculation."),
-  incidentMediumRefractiveIndex: ComplexRefractiveIndexSchema.default({ n: 1.0, k: 0.0 }).describe("Refractive index of the incident medium"),
-  substrateMediumRefractiveIndex: ComplexRefractiveIndexSchema.default({ n: 1.0, k: 0.0 }).describe("Refractive index of the substrate medium"),
   
-  materialLibrary: z.array(NamedMaterialSchema).default([
+  incidentMediumMaterialId: z.string().min(1, "Incident medium material is required.").describe("Material ID for the incident medium from the library."),
+  substrateMediumMaterialId: z.string().min(1, "Substrate medium material is required.").describe("Material ID for the substrate medium from the library."),
+  
+  materialLibrary: z.array(NamedMaterialSchema).min(1, "Material library cannot be empty. At least 'Air' should be present.").default([
     { id: 'default-air', name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
-    { id: 'default-glass', name: 'Glass (BK7 approx)', properties: { type: 'constant', n: 1.52, k: 0.0, materialName: 'Glass (BK7 approx)' } },
   ]),
 
   numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers for demo").default(1),
@@ -59,16 +59,14 @@ export const SolverFormSchema = z.object({
   
   layerMaterials: z.array(
     z.object({
-      materialId: z.string().min(1, "Please select a material.") // Refers to NamedMaterial.id
+      materialId: z.string().min(1, "Please select a material for this layer.") 
     })
-  ).default([{ materialId: 'default-glass' }]), // Default layer uses the pre-defined glass
+  ).default([{ materialId: 'default-air' }]), 
   
-  // Fields for wavelength sweep
   minWavelength: z.coerce.number().min(1, "Min wavelength must be > 0 nm").default(400),
   maxWavelength: z.coerce.number().min(1, "Max wavelength must be > 0 nm").default(700),
   angleOfIncidence: z.coerce.number().min(0, "Angle must be 0-89.9°").max(89.9, "Angle must be 0-89.9°").default(0).describe("Angle of incidence in degrees for wavelength sweep"),
   
-  // Fields for angle sweep
   wavelength: z.coerce.number().min(1, "Wavelength must be > 0 nm").default(500).describe("Single wavelength in nm for angle sweep"),
   minAngle: z.coerce.number().min(0, "Min angle must be 0-89.9°").max(89.9, "Min angle must be 0-89.9°").default(0),
   maxAngle: z.coerce.number().min(0, "Max angle must be 0-89.9°").max(89.9, "Max angle must be 0-89.9°").default(89.9),
@@ -110,19 +108,19 @@ export const SolverFormSchema = z.object({
     }
   }
 
-  // Validate material names in library are unique
-  const materialNames = new Set();
+  const materialNames = new Set<string>();
+  const materialLibraryIds = new Set<string>(data.materialLibrary.map(m => m.id));
+
   data.materialLibrary.forEach((material, index) => {
-    if (materialNames.has(material.name.toLowerCase())) {
+    if (materialNames.has(material.name.toLowerCase().trim())) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Material name "${material.name}" is not unique. Please use distinct names.`,
         path: [`materialLibrary.${index}.name`],
       });
     }
-    materialNames.add(material.name.toLowerCase());
+    materialNames.add(material.name.toLowerCase().trim());
 
-    // Validate dispersive data points are sorted by wavelength if present
     if (material.properties.type === 'dispersive') {
       for (let i = 0; i < material.properties.data.length - 1; i++) {
         if (material.properties.data[i].wavelength >= material.properties.data[i+1].wavelength) {
@@ -136,8 +134,6 @@ export const SolverFormSchema = z.object({
     }
   });
   
-  // Validate layer materialId references existing material in library
-  const materialLibraryIds = new Set(data.materialLibrary.map(m => m.id));
   data.layerMaterials.forEach((layer, index) => {
       if (layer.materialId && !materialLibraryIds.has(layer.materialId)) {
           ctx.addIssue({
@@ -147,6 +143,22 @@ export const SolverFormSchema = z.object({
           });
       }
   });
+
+  if (data.incidentMediumMaterialId && !materialLibraryIds.has(data.incidentMediumMaterialId)) {
+    ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Selected incident medium material is not found in the library.`,
+        path: [`incidentMediumMaterialId`],
+    });
+  }
+  if (data.substrateMediumMaterialId && !materialLibraryIds.has(data.substrateMediumMaterialId)) {
+    ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Selected substrate medium material is not found in the library.`,
+        path: [`substrateMediumMaterialId`],
+    });
+  }
+
 });
 
 export type SolverFormValues = z.infer<typeof SolverFormSchema>;
@@ -154,10 +166,10 @@ export type SolverFormValues = z.infer<typeof SolverFormSchema>;
 export type SweepParameter = 'wavelength' | 'angle';
 
 export interface OpticalResponsePoint {
-  xValue: number; // Will hold either wavelength or angle
-  reflectance: number; // 0-1
-  transmittance: number; // 0-1
-  absorptance: number; // 0-1
+  xValue: number; 
+  reflectance: number; 
+  transmittance: number;
+  absorptance: number; 
 }
 
 export interface CalculationResults {
@@ -187,17 +199,18 @@ export const defaultNamedMaterial: NamedMaterial = {
     properties: defaultLayerMaterialPropertiesConstant,
 }
 
+const defaultAirMaterialId = 'default-air';
+
 export const defaultSolverFormValues: SolverFormValues = {
   sweepType: 'wavelength',
-  incidentMediumRefractiveIndex: { n: 1.0, k: 0.0 },
-  substrateMediumRefractiveIndex: { n: 1.0, k: 0.0 },
+  incidentMediumMaterialId: defaultAirMaterialId,
+  substrateMediumMaterialId: defaultAirMaterialId,
   materialLibrary: [
-    { id: 'default-air', name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
-    { id: 'default-glass', name: 'Glass (BK7 approx)', properties: { type: 'constant', n: 1.52, k: 0.0, materialName: 'Glass (BK7 approx)' } },
+    { id: defaultAirMaterialId, name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
   ],
   numLayers: 1, 
   thickness: [100], 
-  layerMaterials: [{ materialId: 'default-glass' }], // Default layer uses the pre-defined glass
+  layerMaterials: [{ materialId: defaultAirMaterialId }],
   
   minWavelength: 400,
   maxWavelength: 700,
@@ -209,5 +222,3 @@ export const defaultSolverFormValues: SolverFormValues = {
 
   polarization: 'TE',
 };
-
-    

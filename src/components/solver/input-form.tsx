@@ -28,7 +28,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur', // 'onChange' can be too aggressive for performance with complex forms
+    mode: 'onBlur', 
   });
   const { toast } = useToast();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -38,7 +38,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
-  const materialLibrary = watch('materialLibrary'); // Watch the library to populate layer selects
+  const materialLibrary = watch('materialLibrary'); 
 
   const { fields: thicknessFields, append: appendThickness, remove: removeThickness } = useFieldArray({
     control,
@@ -47,15 +47,14 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
   const { fields: layerMaterialFields, append: appendLayerMaterialSelection, remove: removeLayerMaterialSelection } = useFieldArray({
     control,
-    name: 'layerMaterials', // This now controls the selection of materialId for each layer
+    name: 'layerMaterials', 
   });
 
-  const { fields: libraryMaterialFields, append: appendLibraryMaterial, remove: removeLibraryMaterial, update: updateLibraryMaterialProperties } = useFieldArray({
+  const { fields: libraryMaterialFields, append: appendLibraryMaterial, remove: removeLibraryMaterial } = useFieldArray({
     control,
     name: 'materialLibrary',
   });
 
-  // Sync thickness and layerMaterial (selection) arrays with numLayers
   useEffect(() => {
     const parsedNumLayers = parseInt(String(numLayers), 10);
 
@@ -65,7 +64,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       return;
     }
 
-    // Sync thickness array
     const currentThicknessLength = thicknessFields.length;
     if (parsedNumLayers > currentThicknessLength) {
       for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
@@ -77,11 +75,9 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       }
     }
 
-    // Sync layerMaterials (material ID selection) array
     const currentLayerMaterialSelectionLength = layerMaterialFields.length;
     if (parsedNumLayers > currentLayerMaterialSelectionLength) {
       for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
-        // Append a new layer selection. It will be empty or use a default material from library if available
         appendLayerMaterialSelection({ materialId: materialLibrary.length > 0 ? materialLibrary[0].id : '' }, { shouldFocus: false });
       }
     } else if (parsedNumLayers < currentLayerMaterialSelectionLength) {
@@ -93,7 +89,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
 
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
-    // Ensure dispersive data in library is sorted by wavelength before submitting
     const processedData = {
       ...data,
       materialLibrary: data.materialLibrary.map(material => {
@@ -114,10 +109,11 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   
   const handleMaterialPropertyTypeChange = (libraryMaterialIndex: number, newType: 'constant' | 'dispersive') => {
     const currentMaterial = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
+    const materialName = watch(`materialLibrary.${libraryMaterialIndex}.name`);
     if (newType === 'constant' && currentMaterial.type !== 'constant') {
-      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesConstant, materialName: watch(`materialLibrary.${libraryMaterialIndex}.name`) });
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesConstant, materialName: materialName });
     } else if (newType === 'dispersive' && currentMaterial.type !== 'dispersive') {
-      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesDispersive, materialName: watch(`materialLibrary.${libraryMaterialIndex}.name`) });
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesDispersive, materialName: currentMaterial.materialName || materialName });
     }
   };
   
@@ -194,12 +190,12 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             {/* --- Material Library Section --- */}
             <div className="space-y-4 p-4 border rounded-md shadow-sm bg-card/60">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold flex items-center gap-2"><Library size={20} /> Material Library</h3>
+                    <h3 className="text-base font-semibold flex items-center gap-2"><Library size={20} /> Material Library</h3>
                     <Button type="button" size="sm" onClick={() => appendLibraryMaterial({ ...defaultNamedMaterial, id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, name: `Material ${libraryMaterialFields.length + 1}` })}>
                         <PlusCircle size={16} className="mr-2" /> Add Material
                     </Button>
                 </div>
-                {libraryMaterialFields.length === 0 && <p className="text-sm text-muted-foreground">No materials defined. Add materials to use in layers.</p>}
+                {libraryMaterialFields.length === 0 && <p className="text-sm text-muted-foreground">No materials defined. Add materials to use in layers and for surrounding media.</p>}
                 <div className="space-y-6">
                 {libraryMaterialFields.map((libraryField, libIndex) => (
                     <Card key={libraryField.id} className="p-4 bg-background/30">
@@ -209,7 +205,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             name={`materialLibrary.${libIndex}.name`}
                             render={({ field }) => (
                                 <FormItem className="flex-grow mr-2">
-                                <FormLabel className="text-base font-medium">Material Name</FormLabel>
+                                <FormLabel className="text-sm font-medium">Material Name</FormLabel>
                                 <FormControl><Input placeholder="e.g., Silicon, Air, Custom Glass" {...field} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -272,7 +268,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                         <Button type="button" size="sm" variant="outline" onClick={() => addDispersivePointToLibraryMaterial(libIndex)}><PlusCircle size={14} className="mr-1" /> Add Point</Button>
                                     </div>
                                 </div>
-                                {/* Nested Field Array for Dispersive Data Points */}
                                 <Controller
                                     control={control}
                                     name={`materialLibrary.${libIndex}.properties.data`}
@@ -289,7 +284,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                                 <Button type="button" variant="ghost" size="icon" className="mt-4 text-destructive hover:text-destructive/80" onClick={() => removeDispersivePointFromLibraryMaterial(libIndex, pointIndex)} disabled={(watch(`materialLibrary.${libIndex}.properties.data`) || []).length <= 2}><Trash2 size={16} /><span className="sr-only">Remove Point</span></Button>
                                             </div>
                                         ))}
-                                        {/* Error for the whole 'data' array if root error exists */}
                                         {errors.materialLibrary?.[libIndex]?.properties?.data?.message && <p className="text-sm font-medium text-destructive">{errors.materialLibrary?.[libIndex]?.properties?.data?.message as string}</p>}
                                         {errors.materialLibrary?.[libIndex]?.properties?.data?.root?.message && <p className="text-sm font-medium text-destructive">{errors.materialLibrary?.[libIndex]?.properties?.data?.root?.message as string}</p>}
                                         </>
@@ -305,8 +299,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             </div>
             <Separator/>
 
-
-            {/* --- Sweep Type and General Parameters --- */}
             <FormField control={control} name="sweepType" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-1 text-base font-semibold"><Repeat size={16} />Calculation Sweep Type</FormLabel>
@@ -324,20 +316,28 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
             <h3 className="text-base font-semibold flex items-center gap-2"><ArrowDownUp size={16}/>Surrounding Media</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md shadow-sm bg-card/50">
-                <div>
-                    <Label className="font-semibold text-sm mb-2 block">Incident Medium (Top)</Label>
-                    <div className="space-y-3">
-                        <FormField control={control} name="incidentMediumRefractiveIndex.n" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={control} name="incidentMediumRefractiveIndex.k" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                    </div>
-                </div>
-                 <div>
-                    <Label className="font-semibold text-sm mb-2 block">Substrate Medium (Bottom)</Label>
-                     <div className="space-y-3">
-                        <FormField control={control} name="substrateMediumRefractiveIndex.n" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 1.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={control} name="substrateMediumRefractiveIndex.k" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                    </div>
-                </div>
+                <FormField control={control} name="incidentMediumMaterialId" render={({ field }) => (
+                  <FormItem><FormLabel className="flex items-center gap-1 text-sm font-semibold"><BookType size={14}/>Incident Medium (Top)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select incident material" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {materialLibrary.length === 0 && <SelectItem value="" disabled>No materials in library</SelectItem>}
+                        {materialLibrary.map(material => (
+                          <SelectItem key={material.id} value={material.id}>{material.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select><FormMessage /></FormItem> )} />
+                <FormField control={control} name="substrateMediumMaterialId" render={({ field }) => (
+                  <FormItem><FormLabel className="flex items-center gap-1 text-sm font-semibold"><BookType size={14}/>Substrate Medium (Bottom)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select substrate material" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {materialLibrary.length === 0 && <SelectItem value="" disabled>No materials in library</SelectItem>}
+                        {materialLibrary.map(material => (
+                          <SelectItem key={material.id} value={material.id}>{material.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select><FormMessage /></FormItem> )} />
             </div>
             <Separator />
 
@@ -356,7 +356,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             </div>
             <Separator />
 
-            {/* --- Conditional Sweep Parameter Inputs --- */}
             {sweepType === 'wavelength' && ( <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={16}/>Wavelength Sweep Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -372,7 +371,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                     <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                 </div> </> )}
 
-            {/* --- Layer Details Section --- */}
             {numLayers > 0 && !isNaN(numLayers) && numLayers <= 20 && (
               <>
                 <Separator className="my-6" />
@@ -421,5 +419,3 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     </Card>
   );
 }
-
-    
