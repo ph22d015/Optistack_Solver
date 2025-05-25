@@ -4,78 +4,97 @@
 @tailwind utilities;
 
 body {
-  /* Font family is applied via next/font classes in layout.tsx */
+  /* Font family is applied via next/font CSS variables in layout.tsx */
+  font-family: var(--font-roboto-sans);
 }
 
 @layer base {
   :root {
-    --background: 210 30% 98%; /* #F7F9FA - Very light cool gray */
-    --foreground: 218 20% 15%; /* Dark desaturated blue-gray */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 218 20% 15%; /* Dark desaturated blue-gray */
-    --popover: 0 0% 100%; /* White */
-    --popover-foreground: 218 20% 15%; /* Dark desaturated blue-gray */
-    --primary: 221 40% 42%; /* #3B5998 - Deep, muted blue */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 218 30% 95%; /* Light blue-gray */
-    --secondary-foreground: 218 20% 15%; /* Dark desaturated blue-gray */
-    --muted: 218 20% 90%; /* Lighter blue-gray */
-    --muted-foreground: 218 10% 55%; /* Medium gray */
-    --accent: 250 50% 75%; /* #8075FF - Muted purple */
-    --accent-foreground: 218 20% 15%; /* Dark desaturated blue-gray */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 218 20% 80%; /* Blue-gray border */
-    --input: 218 20% 85%; /* Lighter blue-gray input */
-    --ring: 221 40% 42%; /* Deep, muted blue */
+    --background: 210 17% 97%; /* #F8F9FA - Very light gray */
+    --foreground: 220 10% 13%; /* #202124 - Dark gray text */
+    --card: 0 0% 100%; /* #FFFFFF - White */
+    --card-foreground: 220 10% 13%; /* #202124 */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 220 10% 13%; /* #202124 */
+    
+    --primary: 217 82% 50%; /* #1A73E8 - Google Blue */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    
+    --secondary: 220 17% 92%; /* #E8EAED - Light gray for secondary elements */
+    --secondary-foreground: 213 5% 25%; /* #3C4043 - Darker gray for text on secondary */
+    
+    --muted: 213 17% 95%; /* #F1F3F4 - Lighter gray for muted backgrounds */
+    --muted-foreground: 213 6% 40%; /* #5F6368 - Medium gray for muted text */
+    
+    --accent: 217 82% 50%; /* Using primary blue for accent */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    
+    --destructive: 0 84.2% 60.2%; /* Standard red */
+    --destructive-foreground: 0 0% 98%; /* Light text on destructive */
+    
+    --border: 220 13% 86%; /* #DADCE0 - Light gray border */
+    --input: 220 13% 86%; /* Border color for input */
+    --ring: 217 82% 50%; /* Primary blue for focus rings */
+
     --chart-1: hsl(0 70% 60%); /* Red for Reflectance */
     --chart-2: hsl(120 60% 50%); /* Green for Transmittance */
     --chart-3: hsl(220 70% 60%); /* Blue for Absorptance */
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    /* Sidebar variables based on new theme */
-    --sidebar-background: 210 30% 96%; /* Very light blue-gray */
-    --sidebar-foreground: 218 20% 18%; /* Darker text for sidebar */
-    --sidebar-primary: 221 40% 38%; /* Slightly deeper primary for sidebar elements */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 250 50% 70%; /* Slightly darker muted purple */
-    --sidebar-accent-foreground: 218 20% 18%;
-    --sidebar-border: 218 20% 75%;
-    --sidebar-ring: 221 40% 38%;
+
+    --radius: 0.25rem; /* 4px, common Material Design radius */
+
+    /* Sidebar variables - Light Theme */
+    --sidebar-background: 0 0% 100%; /* White, similar to cards */
+    --sidebar-foreground: 220 10% 13%; /* Dark gray text */
+    --sidebar-primary: 217 82% 50%; /* Primary blue */
+    --sidebar-primary-foreground: 0 0% 100%; /* White */
+    --sidebar-accent: 217 82% 50%; /* Primary blue for accent */
+    --sidebar-accent-foreground: 0 0% 100%; /* White */
+    --sidebar-border: 220 13% 86%; /* Light gray border */
+    --sidebar-ring: 217 82% 50%; /* Primary blue for focus */
   }
+
   .dark {
-    --background: 218 20% 10%; /* Darker shade of background */
-    --foreground: 210 30% 90%; /* Lighter gray */
-    --card: 218 20% 12%; /* Slightly lighter than background */
-    --card-foreground: 210 30% 90%;
-    --popover: 218 20% 12%;
-    --popover-foreground: 210 30% 90%;
-    --primary: 221 40% 30%; /* Darker shade of primary */
-    --primary-foreground: 218 20% 5%; /* Very dark for contrast */
-    --secondary: 218 20% 15%; /* Dark blue-gray */
-    --secondary-foreground: 210 30% 90%;
-    --muted: 218 15% 20%; /* Darker gray */
-    --muted-foreground: 210 20% 60%; /* Lighter gray for muted text */
-    --accent: 250 50% 55%; /* Darker shade of accent */
-    --accent-foreground: 218 20% 5%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 220 10% 13%; /* #202124 - Dark gray */
+    --foreground: 220 17% 92%; /* #E8EAED - Light gray text */
+    --card: 220 8% 16%; /* #282A2D - Slightly lighter dark gray */
+    --card-foreground: 220 17% 92%; /* #E8EAED */
+    --popover: 220 8% 16%; /* #282A2D */
+    --popover-foreground: 220 17% 92%; /* #E8EAED */
+
+    --primary: 216 91% 76%; /* #8AB4F8 - Lighter blue for dark mode */
+    --primary-foreground: 220 10% 13%; /* #202124 - Dark text on light blue */
+
+    --secondary: 213 5% 25%; /* #3C4043 - Darker gray */
+    --secondary-foreground: 220 17% 92%; /* #E8EAED */
+
+    --muted: 220 8% 16%; /* #282A2D */
+    --muted-foreground: 220 7% 60%; /* #9AA0A6 - Medium light gray for muted text */
+
+    --accent: 216 91% 76%; /* Lighter blue for accent */
+    --accent-foreground: 220 10% 13%; /* Dark text on accent */
+    
+    --destructive: 0 72.2% 50.6%; /* Darker red for dark mode */
     --destructive-foreground: 0 0% 98%;
-    --border: 218 15% 25%; /* Medium-dark gray */
-    --input: 218 15% 22%; /* Slightly lighter than border */
-    --ring: 221 40% 30%; /* Darker shade of primary */
+
+    --border: 213 6% 40%; /* #5F6368 - Medium gray border */
+    --input: 213 6% 40%; /* Border color for input */
+    --ring: 216 91% 76%; /* Lighter blue for focus rings */
+
     --chart-1: hsl(0 70% 70%);
     --chart-2: hsl(120 60% 60%);
     --chart-3: hsl(220 70% 70%);
-    /* Dark Sidebar variables */
-    --sidebar-background: 220 20% 10%; /* Even darker for sidebar */
-    --sidebar-foreground: 210 30% 85%; /* Slightly less bright than main fg */
-    --sidebar-primary: 221 40% 25%; /* Even darker primary for sidebar */
-    --sidebar-primary-foreground: 220 15% 5%;
-    --sidebar-accent: 250 50% 50%; /* Even darker accent */
-    --sidebar-accent-foreground: 210 30% 85%;
-    --sidebar-border: 220 15% 25%;
-    --sidebar-ring: 221 40% 25%;
+    
+    /* Sidebar variables - Dark Theme */
+    --sidebar-background: 220 8% 16%; /* Dark card color */
+    --sidebar-foreground: 220 17% 92%; /* Light gray text */
+    --sidebar-primary: 216 91% 76%; /* Light blue */
+    --sidebar-primary-foreground: 220 10% 13%; /* Dark text */
+    --sidebar-accent: 216 91% 76%; /* Light blue for accent */
+    --sidebar-accent-foreground: 220 10% 13%; /* Dark text */
+    --sidebar-border: 213 6% 40%; /* Medium gray border */
+    --sidebar-ring: 216 91% 76%; /* Light blue for focus */
   }
 }
 
