@@ -26,7 +26,13 @@ export default function HomePage() {
   return (
     <div className="space-y-12 container mx-auto px-4"> {/* Removed py-8 */}
       <section aria-labelledby="hero-title" className="text-center py-12 bg-gradient-to-br from-primary/10 via-background to-background rounded-lg shadow-lg">
-        <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl mb-8">
+        <h1 id="hero-title" className="text-4xl font-bold tracking-tight text-primary sm:text-5xl lg:text-6xl">
+          Welcome to OptiStack Solver
+        </h1>
+        <p className="mt-6 text-lg leading-8 text-foreground/80 max-w-2xl mx-auto">
+          Simulate and analyze the optical response of multilayer thin-film stacks with precision. Explore reflectance, transmittance, and absorptance across wavelengths or angles.
+        </p>
+        <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl my-8">
           <Image
             src="/optical_stack_diagram.png"
             alt="Optical layers diagram"
@@ -35,12 +41,6 @@ export default function HomePage() {
             priority
           />
         </div>
-        <h1 id="hero-title" className="text-4xl font-bold tracking-tight text-primary sm:text-5xl lg:text-6xl">
-          Welcome to OptiStack Solver
-        </h1>
-        <p className="mt-6 text-lg leading-8 text-foreground/80 max-w-2xl mx-auto">
-          Simulate and analyze the optical response of multilayer thin-film stacks with precision. Explore reflectance, transmittance, and absorptance across wavelengths or angles.
-        </p>
         <Button size="lg" className="mt-10" onClick={handleGetStarted} disabled={authLoading}>
            {authLoading ? 'Loading...' : (user ? <><PlayCircle className="mr-2 h-5 w-5" /> Go to Solver</> : <><LogIn className="mr-2 h-5 w-5" /> Login to Simulate</>)}
         </Button>
