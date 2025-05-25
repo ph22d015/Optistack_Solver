@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, Lightbulb, Layers3 } from "lucide-react";
 
 export default function AboutPage() {
   return (
-    <div className="container mx-auto px-4 py-8 space-y-12">
+    <div className="container mx-auto px-4 space-y-12"> {/* Removed py-8 */}
       <header className="text-center">
         <Layers3 className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">

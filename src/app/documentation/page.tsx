@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function DocumentationPage() {
   return (
-    <div className="container mx-auto px-4 py-8 space-y-12">
+    <div className="container mx-auto px-4 space-y-12"> {/* Removed py-8 */}
       <header className="text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
           Optical Solver Documentation

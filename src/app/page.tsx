@@ -24,7 +24,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-12 container mx-auto px-4 py-8">
+    <div className="space-y-12 container mx-auto px-4"> {/* Removed py-8 */}
       <section aria-labelledby="hero-title" className="text-center py-12 bg-gradient-to-br from-primary/10 via-background to-background rounded-lg shadow-lg">
         <div className="relative aspect-[2/1] w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl mb-8">
           <Image

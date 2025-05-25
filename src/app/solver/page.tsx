@@ -128,7 +128,7 @@ export default function SolverPage() {
 
   if (authLoading || (!user && !authLoading)) {
     return (
-      <div className="space-y-8 container mx-auto px-4 py-8">
+      <div className="space-y-8 container mx-auto px-4"> {/* Removed py-8 */}
         <section aria-labelledby="solver-title-skeleton">
           <div className="text-center mb-8">
             <Skeleton className="h-10 w-3/4 mx-auto mb-4" />
@@ -149,7 +149,7 @@ export default function SolverPage() {
 
 
   return (
-    <div className="space-y-8 container mx-auto px-4 py-8">
+    <div className="space-y-8 container mx-auto px-4"> {/* Removed py-8 */}
       <section aria-labelledby="solver-title">
         <div className="text-center mb-8">
           <h1 id="solver-title" className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">

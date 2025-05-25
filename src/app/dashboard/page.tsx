@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
   if (authLoading || (!user && !authLoading)) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="container mx-auto px-4 space-y-8"> {/* Removed py-8 */}
         <Skeleton className="h-10 w-1/3 mb-6" />
         <div className="grid md:grid-cols-2 gap-8">
           <Skeleton className="h-48 w-full rounded-lg" />
@@ -74,7 +74,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 space-y-8"> {/* Removed py-8 */}
       <header>
         <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl mb-2">
           Dashboard
