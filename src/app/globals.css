@@ -10,7 +10,7 @@ body {
 
 @layer base {
   :root {
-    --background: 220 40% 98%; /* Very light cool gray */
+    --background: 216 60% 97%; /* #F0F4F8 - Very light blue-gray (PRD) */
     --foreground: 220 10% 13%; /* Dark gray text */
     
     --card: 0 0% 100%; /* White */
@@ -19,7 +19,7 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 220 10% 13%;
     
-    --primary: 175 80% 38%; /* Vibrant Teal */
+    --primary: 222 45% 41%; /* #3B5998 - Deep, muted blue (PRD) */
     --primary-foreground: 0 0% 100%; /* White */
     
     --secondary: 210 20% 94%; /* Light cool gray for secondary elements */
@@ -28,7 +28,7 @@ body {
     --muted: 210 20% 96%; /* Lighter cool gray for muted backgrounds */
     --muted-foreground: 220 7% 45%; /* Medium gray for muted text */
     
-    --accent: 250 75% 55%; /* Vibrant Purple-Blue for accents */
+    --accent: 243 100% 73%; /* #8075FF - Muted purple (PRD) */
     --accent-foreground: 0 0% 100%; /* White text on accent */
     
     --destructive: 0 84.2% 60.2%; /* Standard red */
@@ -36,7 +36,7 @@ body {
     
     --border: 220 15% 88%; /* Light gray border */
     --input: 220 15% 88%;
-    --ring: 175 80% 38%; /* Primary Teal for focus rings */
+    --ring: 222 45% 41%; /* Primary Blue for focus rings (PRD) */
 
     --chart-1: hsl(0 70% 60%); /* Red for Reflectance */
     --chart-2: hsl(120 60% 50%); /* Green for Transmittance */
@@ -49,12 +49,12 @@ body {
     /* Sidebar variables - Light Theme */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 10% 13%;
-    --sidebar-primary: 175 80% 38%;
+    --sidebar-primary: 222 45% 41%; /* Primary Blue (PRD) */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 250 75% 55%;
+    --sidebar-accent: 243 100% 73%; /* Accent Purple (PRD) */
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 220 15% 88%;
-    --sidebar-ring: 175 80% 38%;
+    --sidebar-ring: 222 45% 41%; /* Primary Blue (PRD) */
   }
 
   .dark {
@@ -67,8 +67,8 @@ body {
     --popover: 220 12% 15%;
     --popover-foreground: 220 15% 90%;
 
-    --primary: 175 70% 55%; /* Lighter Teal for dark mode */
-    --primary-foreground: 220 10% 10%; /* Dark text on light teal */
+    --primary: 222 45% 55%; /* Lighter version of PRD blue for dark mode */
+    --primary-foreground: 0 0% 100%; /* White text */
 
     --secondary: 220 10% 20%; /* Dark Blue-Gray for secondary */
     --secondary-foreground: 220 15% 90%;
@@ -76,7 +76,7 @@ body {
     --muted: 220 12% 15%; 
     --muted-foreground: 220 10% 60%; /* Medium light gray for muted text */
 
-    --accent: 250 70% 65%; /* Lighter Purple-Blue for accent */
+    --accent: 243 100% 80%; /* Lighter version of PRD purple for dark mode */
     --accent-foreground: 220 10% 10%; /* Dark text on accent */
     
     --destructive: 0 65% 55%; /* Darker red for dark mode */
@@ -84,7 +84,7 @@ body {
 
     --border: 220 10% 30%; /* Medium gray border */
     --input: 220 10% 30%;
-    --ring: 175 70% 55%; /* Lighter Teal for focus rings */
+    --ring: 222 45% 55%; /* Lighter blue for focus rings */
 
     --chart-1: hsl(0 70% 70%);
     --chart-2: hsl(120 60% 60%);
@@ -93,12 +93,12 @@ body {
     /* Sidebar variables - Dark Theme */
     --sidebar-background: 220 12% 15%;
     --sidebar-foreground: 220 15% 90%;
-    --sidebar-primary: 175 70% 55%;
-    --sidebar-primary-foreground: 220 10% 10%;
-    --sidebar-accent: 250 70% 65%;
+    --sidebar-primary: 222 45% 55%; /* Lighter PRD blue */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 243 100% 80%; /* Lighter PRD purple */
     --sidebar-accent-foreground: 220 10% 10%;
     --sidebar-border: 220 10% 30%;
-    --sidebar-ring: 175 70% 55%;
+    --sidebar-ring: 222 45% 55%; /* Lighter PRD blue */
   }
 }
 
