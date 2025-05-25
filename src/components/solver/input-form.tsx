@@ -14,7 +14,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Separator } from '@/components/ui/separator';
 import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, Eye, Sparkles } from 'lucide-react';
 import React, { useEffect, type RefObject, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import ReCAPTCHA from 'react-google-recaptcha'; // Changed from "import type ReCAPTCHA"
+// import ReCAPTCHA from 'react-google-recaptcha'; // Commented out ReCAPTCHA import
+import type ReCAPTCHA from 'react-google-recaptcha'; // Keep type for ref if needed
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import MaterialDataChart from './material-data-chart';
@@ -24,8 +25,8 @@ import StackVisualizer from './stack-visualizer';
 interface InputFormProps {
   onSubmit: (data: SolverFormValues) => void;
   isLoading: boolean;
-  recaptchaRef: RefObject<ReCAPTCHA>;
-  recaptchaSiteKey: string;
+  // recaptchaRef: RefObject<ReCAPTCHA>; // Prop can remain if SolverPage still passes it
+  // recaptchaSiteKey: string; // Prop can remain
 }
 
 export interface InputFormRef {
@@ -34,7 +35,7 @@ export interface InputFormRef {
 
 const DEFAULT_DISPERSIVE_POINTS_COUNT = 2;
 
-const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }, ref) => {
+const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoading /*, recaptchaRef, recaptchaSiteKey */ }, ref) => {
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
@@ -522,10 +523,12 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
                 </>
               )}
 
+              {/*
               {recaptchaSiteKey && (
                 <div className="my-6 flex justify-center md:justify-start">
                   <ReCAPTCHA ref={recaptchaRef} sitekey={recaptchaSiteKey} />
                 </div> )}
+              */}
 
               <Button type="submit" disabled={isLoading || isSubmitting} className="w-full md:w-auto mt-6">
                 <Calculator size={18} className="mr-2" />
@@ -561,4 +564,3 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
 });
 InputForm.displayName = "InputForm";
 export default InputForm;
-

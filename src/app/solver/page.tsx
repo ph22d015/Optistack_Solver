@@ -6,13 +6,14 @@ import type { RefObject } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import InputForm from '@/components/solver/input-form';
+import type { InputFormRef } from '@/components/solver/input-form';
 import ResultsDisplay from '@/components/solver/results-display';
 import type { SolverFormValues, CalculationResults, SavedSimulationEntry } from '@/types/solver';
 import { calculateOpticalResponse } from '@/lib/solver-calculations';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
-import type ReCAPTCHA from 'react-google-recaptcha';
-import { verifyRecaptchaToken } from '@/app/actions';
+// import type ReCAPTCHA from 'react-google-recaptcha'; // Keep type import if ref type needs it
+// import { verifyRecaptchaToken } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { saveSimulation as saveSimulationToStorage, getSimulationById } from '@/lib/localStorageUtils';
 
@@ -27,9 +28,9 @@ export default function SolverPage() {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
-  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-  const formRef = useRef<{ resetForm: (values: SolverFormValues) => void }>(null);
+  // const recaptchaRef = useRef<ReCAPTCHA>(null); // Keep ref if InputForm still expects it
+  // const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const formRef = useRef<InputFormRef>(null);
 
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function SolverPage() {
       if (savedSim) {
         formRef.current.resetForm(savedSim.formValues);
         // Optionally set results if you want to show them immediately
-        // setResults(savedSim.results); 
+        // setResults(savedSim.results);
         // setCurrentFormValues(savedSim.formValues);
          toast({ title: "Simulation Loaded", description: `Loaded parameters for simulation: ${savedSim.name || savedSim.id}`});
       } else {
@@ -68,6 +69,7 @@ export default function SolverPage() {
     setIsLoading(true);
     setResults(null);
 
+    /* // ReCAPTCHA verification block - commented out
     if (siteKey) {
       const token = recaptchaRef.current?.getValue();
       if (!token) {
@@ -92,8 +94,9 @@ export default function SolverPage() {
         return;
       }
     } else {
-      console.warn("ReCAPTCHA site key not configured. Skipping verification.");
+      // console.warn("ReCAPTCHA site key not configured. Skipping verification.");
     }
+    */ // End of ReCAPTCHA verification block
 
     startTransition(async () => {
       try {
@@ -111,7 +114,7 @@ export default function SolverPage() {
           variant: "destructive",
         });
         setResults({
-            data: [], 
+            data: [],
             sweepParameter: data.sweepType,
         });
       } finally {
@@ -128,7 +131,7 @@ export default function SolverPage() {
 
   if (authLoading || (!user && !authLoading)) {
     return (
-      <div className="space-y-8 container mx-auto px-4"> {/* Removed py-8 */}
+      <div className="space-y-8"> {/* Removed py-8 from root div */}
         <section aria-labelledby="solver-title-skeleton">
           <div className="text-center mb-8">
             <Skeleton className="h-10 w-3/4 mx-auto mb-4" />
@@ -142,14 +145,14 @@ export default function SolverPage() {
       </div>
     );
   }
-  
+
   if (!user) {
-      return null; 
+      return null;
   }
 
 
   return (
-    <div className="space-y-8 container mx-auto px-4"> {/* Removed py-8 */}
+    <div className="space-y-8"> {/* Removed py-8 from root div */}
       <section aria-labelledby="solver-title">
         <div className="text-center mb-8">
           <h1 id="solver-title" className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
@@ -166,15 +169,15 @@ export default function SolverPage() {
       <InputForm
         onSubmit={handleFormSubmit}
         isLoading={isLoading || isPending}
-        recaptchaRef={recaptchaRef}
-        recaptchaSiteKey={siteKey || ""}
-        ref={formRef} // Pass the ref to InputForm
+        // recaptchaRef={recaptchaRef} // Pass ref even if not used to avoid prop type errors if InputForm expects it
+        // recaptchaSiteKey={siteKey || ""}
+        ref={formRef}
       />
-      
+
       <Separator className="my-8" />
 
-      <ResultsDisplay 
-        results={results} 
+      <ResultsDisplay
+        results={results}
         isLoading={isLoading || isPending}
         formValues={currentFormValues}
         onSaveSimulation={handleSaveSimulation}
