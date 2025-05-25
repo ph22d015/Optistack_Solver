@@ -11,6 +11,9 @@ export default function Header() {
           <h1 className="text-2xl font-semibold">OptiStack Solver</h1>
         </Link>
         <nav className="flex items-center gap-4 sm:gap-6 text-sm font-medium">
+          <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
+            Home
+          </Link>
           <Link href="/documentation" className="text-muted-foreground hover:text-foreground transition-colors">
             Documentation
           </Link>
