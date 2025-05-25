@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
-import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, BarChartHorizontalBig, Eye } from 'lucide-react';
+import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, Eye, Sparkles } from 'lucide-react';
 import React, { useEffect, type RefObject, useRef, useState } from 'react';
 import type ReCAPTCHA from 'react-google-recaptcha';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import MaterialDataChart from './material-data-chart';
+import StackVisualizer from './stack-visualizer';
 
 
 interface InputFormProps {
@@ -48,6 +49,11 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
   const materialLibrary = watch('materialLibrary');
+  const incidentMediumMaterialId = watch('incidentMediumMaterialId');
+  const substrateMediumMaterialId = watch('substrateMediumMaterialId');
+  const layerMaterials = watch('layerMaterials');
+  const thicknesses = watch('thickness');
+
 
   const { fields: thicknessFields, append: appendThickness, remove: removeThickness } = useFieldArray({
     control,
@@ -206,6 +212,19 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     }
   };
 
+  // Prepare data for StackVisualizer
+  const incidentMat = materialLibrary.find(m => m.id === incidentMediumMaterialId);
+  const substrateMat = materialLibrary.find(m => m.id === substrateMediumMaterialId);
+  const internalLayersForVisualizer = Array.from({ length: numLayers }, (_, i) => {
+    const layerMatId = layerMaterials[i]?.materialId;
+    const material = materialLibrary.find(m => m.id === layerMatId);
+    return {
+      materialName: material?.name,
+      thickness: thicknesses[i] ?? 0,
+    };
+  });
+
+
   return (
     <>
     <Card className="w-full shadow-lg">
@@ -241,7 +260,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             render={({ field }) => (
                                 <FormItem className="flex-grow mr-2">
                                 <FormLabel className="text-sm font-medium">Material Name</FormLabel>
-                                <FormControl><Input placeholder="e.g., Silicon, Air, Custom Glass" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormControl><Input placeholder="e.g., Silicon, Air, Custom Glass" {...field} value={typeof field.value === 'string' ? field.value : ''} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -429,12 +448,23 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                     <FormField control={control} name="minAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                     <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                 </div> </> )}
+            
+            {/* --- Stack Visualizer --- */}
+            <Separator className="my-6" />
+             <div className="my-6">
+                 <StackVisualizer
+                    incidentMaterialName={incidentMat?.name}
+                    substrateMaterialName={substrateMat?.name}
+                    internalLayers={internalLayersForVisualizer}
+                  />
+             </div>
+
 
             {/* --- Layer Details Section --- */}
             {(numLayers > 0 && !isNaN(numLayers) && numLayers <= 20) && (
               <>
                 <Separator className="my-6" />
-                <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
+                <h3 className="text-base font-semibold mb-4 flex items-center gap-2"><Sparkles size={16}/>Layer Details (Sandwiched between Incident and Substrate Media)</h3>
                 {layerMaterialSelectionFields.map((layerField, index) => (
                   <div key={layerField.id} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
                     <h4 className="font-semibold text-sm text-primary">Layer {index + 1}</h4>
