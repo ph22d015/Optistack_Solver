@@ -9,7 +9,7 @@ export default function DocumentationPage() {
         <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
           Optical Solver Documentation
         </h1>
-        <p className="mt-4 text-xl text-foreground/80">
+        <p className="mt-4 text-xl text-foreground/80 leading-relaxed">
           Understanding the principles behind multilayer optical simulations.
         </p>
       </header>
@@ -20,7 +20,7 @@ export default function DocumentationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Introduction</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-foreground/90">
+        <CardContent className="space-y-4 text-foreground/90 leading-relaxed">
           <p>
             This optical solver application utilizes fundamental principles of electromagnetism and optics
             to calculate the reflectance (R), transmittance (T), and absorptance (A) of single or
@@ -35,7 +35,7 @@ export default function DocumentationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">1. Fundamentals of Light Propagation</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 leading-relaxed">
           <section>
             <h3 className="text-xl font-semibold mb-2 text-primary/90">1.1 Maxwell's Equations</h3>
             <p className="text-foreground/90">
@@ -48,13 +48,13 @@ export default function DocumentationPage() {
             <p className="mt-2 text-sm text-foreground/70">
               Simplified forms (in vacuum, no free charges/currents):
             </p>
-            <ul className="list-disc list-inside space-y-1 pl-4 mt-2 text-foreground/80 bg-muted p-3 rounded-md">
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2 text-foreground/80 bg-muted p-3 rounded-md">
               <li>∇ ⋅ E = 0 (Gauss's law for electricity)</li>
               <li>∇ ⋅ B = 0 (Gauss's law for magnetism)</li>
               <li>∇ × E = -∂B/∂t (Faraday's law of induction)</li>
               <li>∇ × B = μ₀ε₀ ∂E/∂t (Ampère's circuital law with Maxwell's addition)</li>
             </ul>
-             <p className="mt-2 text-foreground/90">
+             <p className="mt-3 text-foreground/90">
               These equations lead to the wave equation, confirming light as an electromagnetic wave.
             </p>
           </section>
@@ -68,17 +68,17 @@ export default function DocumentationPage() {
               and magnetic (B) fields that are perpendicular to each other and to the direction of
               propagation. For a plane wave, the electric field can be described as:
             </p>
-            <p className="my-2 p-3 bg-muted rounded-md text-center font-mono text-sm text-foreground/80">
+            <p className="my-3 p-3 bg-muted rounded-md text-center font-mono text-sm text-foreground/80">
               E(r, t) = E₀ exp[i(k ⋅ r - ωt)]
             </p>
             <p className="text-foreground/90">
               Where E₀ is the amplitude, k is the wavevector (magnitude |k| = 2π/λ, where λ is wavelength),
               ω is the angular frequency (ω = 2πf), r is the position vector, and t is time.
             </p>
-            <p className="mt-2 text-foreground/90">
+            <p className="mt-3 text-foreground/90">
               The refractive index (ñ) of a medium is a complex quantity: ñ = n + ik.
             </p>
-            <ul className="list-disc list-inside space-y-1 pl-4 mt-2 text-foreground/80">
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2 text-foreground/80">
               <li><strong>n (Real part):</strong> The phase velocity of light in the medium relative to vacuum (v = c/n).
               It determines how much light bends (refracts).</li>
               <li><strong>k (Imaginary part - Extinction Coefficient):</strong> Related to the absorption of light in the medium.
@@ -92,25 +92,25 @@ export default function DocumentationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">2. Light Interaction at Interfaces</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 leading-relaxed">
           <section>
             <h3 className="text-xl font-semibold mb-2 text-primary/90">2.1 Snell's Law</h3>
             <p className="text-foreground/90">
               When light travels from one medium to another (e.g., from air to water), it changes
               direction at the interface. Snell's Law describes this phenomenon:
             </p>
-            <p className="my-2 p-3 bg-muted rounded-md text-center font-mono text-sm text-foreground/80">
+            <p className="my-3 p-3 bg-muted rounded-md text-center font-mono text-sm text-foreground/80">
               n₁ sin(θ₁) = n₂ sin(θ₂)
             </p>
             <p className="text-foreground/90">
               Where:
             </p>
-            <ul className="list-disc list-inside space-y-1 pl-4 mt-2 text-foreground/80">
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2 text-foreground/80">
               <li>n₁ and n₂ are the refractive indices of the first and second medium, respectively.</li>
               <li>θ₁ is the angle of incidence (angle between the incoming ray and the normal to the surface).</li>
               <li>θ₂ is the angle of refraction (angle between the ray in the second medium and the normal).</li>
             </ul>
-            <p className="mt-2 text-foreground/90">
+            <p className="mt-3 text-foreground/90">
               If n₁ > n₂ and θ₁ exceeds a certain critical angle (θ_c = arcsin(n₂/n₁)), light is
               completely reflected back into the first medium. This is known as Total Internal Reflection (TIR).
             </p>
@@ -125,7 +125,7 @@ export default function DocumentationPage() {
               strikes an interface between two media with different refractive indices. These equations
               depend on the polarization of the incident light relative to the plane of incidence.
             </p>
-            <ul className="list-disc list-inside space-y-1 pl-4 mt-2 text-foreground/80">
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2 text-foreground/80">
               <li>
                 <strong>TE (Transverse Electric) or s-polarization:</strong> The electric field is perpendicular
                 to the plane of incidence.
@@ -135,26 +135,26 @@ export default function DocumentationPage() {
                 to the plane of incidence (electric field is parallel to the plane of incidence).
               </li>
             </ul>
-            <p className="mt-2 text-foreground/90">
+            <p className="mt-3 text-foreground/90">
               The reflection coefficients (amplitude ratios) are generally complex. For example:
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-3">
                 <div className="p-3 bg-muted rounded-md">
-                    <p className="font-mono text-sm text-center text-foreground/80">r_s = (n₁cosθ₁ - n₂cosθ₂) / (n₁cosθ₁ + n₂cosθ₂)</p>
+                    <p className="font-mono text-sm text-center text-foreground/80">r_s = (ñ₁cosθ₁ - ñ₂cosθ₂) / (ñ₁cosθ₁ + ñ₂cosθ₂)</p>
                     <p className="text-xs text-center text-foreground/70">(TE / s-polarization reflection coefficient)</p>
                 </div>
                 <div className="p-3 bg-muted rounded-md">
-                    <p className="font-mono text-sm text-center text-foreground/80">r_p = (n₂cosθ₁ - n₁cosθ₂) / (n₂cosθ₁ + n₁cosθ₂)</p>
+                    <p className="font-mono text-sm text-center text-foreground/80">r_p = (ñ₂cosθ₁ - ñ₁cosθ₂) / (ñ₂cosθ₁ + ñ₁cosθ₂)</p>
                     <p className="text-xs text-center text-foreground/70">(TM / p-polarization reflection coefficient)</p>
                 </div>
             </div>
              <p className="text-foreground/90">
-              Here, n₁ and n₂ are generally complex refractive indices (ñ₁ and ñ₂). The angles θ₁ and θ₂ are also generally complex if derived from complex refractive indices, or real if calculated via Snell's law using only the real parts of n.
+              Here, ñ₁ and ñ₂ are generally complex refractive indices. The angles θ₁ and θ₂ are also generally complex if derived from complex refractive indices, or real if calculated via Snell's law using only the real parts of n.
             </p>
-            <p className="mt-2 text-foreground/90">
+            <p className="mt-3 text-foreground/90">
               The **Reflectance (R)** is the ratio of reflected power to incident power: R = |r|².
             </p>
-            <p className="mt-1 text-foreground/90">
+            <p className="mt-2 text-foreground/90">
               The **Transmittance (T)** is the ratio of transmitted power to incident power. For a single interface, it is related to the transmission coefficient 't' by T = (Re(ñ₂cosθ₂)/Re(ñ₁cosθ₁)) * |t|². For lossless media, T = 1 - R.
             </p>
           </section>
@@ -165,7 +165,7 @@ export default function DocumentationPage() {
         <CardHeader>
           <CardTitle className="text-2xl">3. Multilayer Systems - Transfer Matrix Method (TMM)</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-foreground/90">
+        <CardContent className="space-y-4 text-foreground/90 leading-relaxed">
           <p>
             For a stack of multiple thin layers, simply multiplying individual Fresnel coefficients
             is not sufficient due to multiple reflections and interference effects. The Transfer Matrix Method (TMM)
@@ -179,7 +179,7 @@ export default function DocumentationPage() {
           <p>
             In the formulation used by this solver (and common in many texts):
           </p>
-          <ol className="list-decimal list-inside space-y-2 pl-4 mt-2 text-foreground/80">
+          <ol className="list-decimal list-inside space-y-3 pl-4 mt-2 text-foreground/80">
             <li>
               For each interface 'j' between medium 'j' and medium 'j+1', Fresnel reflection (r_j) and transmission (t_j) coefficients are calculated.
             </li>
@@ -188,22 +188,22 @@ export default function DocumentationPage() {
             </li>
             <li>
               A characteristic matrix for each layer (or more precisely, for each interface and the subsequent propagation within a layer) is constructed. A common form of the propagation matrix P_j (incorporating the reflection r_j at the interface before it and phase δ_j within it) is:
-              <div className="my-2 p-3 bg-muted rounded-md text-sm text-foreground/80">
-                <p className="text-center">P_j =</p>
-                <p className="text-center">| exp(-iδ_j)     r_j exp(-iδ_j) |</p>
-                <p className="text-center">| r_j exp(iδ_j)      exp(iδ_j)  |</p>
-                <p className="text-xs text-center">(This form might vary slightly based on convention, here normalized by 1/t_j implicitly for combining.)</p>
+              <div className="my-3 p-3 bg-muted rounded-md text-sm text-foreground/80 font-mono">
+                <p className="text-center mb-1">P_j =</p>
+                <p className="text-center">| exp(-iδ_j)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;r_j exp(-iδ_j) |</p>
+                <p className="text-center">| r_j exp(iδ_j)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exp(iδ_j)&nbsp;&nbsp;|</p>
+                <p className="text-xs text-center text-foreground/70 mt-1">(This form might vary slightly based on convention, here normalized by 1/t_j implicitly for combining.)</p>
               </div>
             </li>
             <li>
               The total transfer matrix M_total for the entire stack is obtained by multiplying the individual matrices:
-              M_total = P₀ * P₁ * P₂ * ... * P_N (where P₀ accounts for the first interface and the incident medium's phase, and P_N for the last interface).
+              M_total = P₀ ⋅ P₁ ⋅ P₂ ⋅ ... ⋅ P_N (where P₀ accounts for the first interface and the incident medium's phase, and P_N for the last interface).
             </li>
              <li>
               From the elements of M_total (e.g., M₁₁, M₁₂, M₂₁, M₂₂):
-              <ul className="list-disc list-inside space-y-1 pl-4 mt-1">
+              <ul className="list-disc list-inside space-y-1 pl-4 mt-2">
                 <li>The overall complex reflection coefficient for the stack: r_stack = M₂₁ / M₁₁ (or M₁₂/M₂₂ depending on definition).</li>
-                <li>The overall complex transmission coefficient for the stack: t_stack = (t_product) / M₁₁ (where t_product is the product of individual Fresnel transmission coefficients).</li>
+                <li>The overall complex transmission coefficient for the stack: t_stack = (Π t_j) / M₁₁ (where Π t_j is the product of individual Fresnel transmission coefficients for each interface traversed).</li>
               </ul>
             </li>
             <li>
@@ -224,11 +224,11 @@ export default function DocumentationPage() {
             Considering a single interface between Air (medium 1) and Water (medium 2). This is the simplest case of TMM (effectively one "layer" if we consider water as the substrate).
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 text-foreground/90">
+        <CardContent className="space-y-4 text-foreground/90 leading-relaxed">
           <p>
             Let's assume:
           </p>
-          <ul className="list-disc list-inside space-y-1 pl-4 mt-2 text-foreground/80 bg-muted p-3 rounded-md">
+          <ul className="list-disc list-inside space-y-2 pl-4 mt-2 text-foreground/80 bg-muted p-3 rounded-md">
             <li>Incident medium: Air (n₁ ≈ 1.0, k₁ = 0)</li>
             <li>Second medium (substrate): Water (n₂ ≈ 1.33, k₂ = 0 at visible wavelengths)</li>
             <li>Angle of incidence θ₁ = 30°</li>
@@ -236,54 +236,54 @@ export default function DocumentationPage() {
             <li>Wavelength doesn't explicitly affect n for this non-dispersive example but would be needed for k if k were non-zero.</li>
           </ul>
 
-          <p><strong>Step 1: Angle of Refraction (Snell's Law)</strong></p>
+          <p className="mt-3"><strong>Step 1: Angle of Refraction (Snell's Law)</strong></p>
           <p className="pl-4 text-foreground/80">
             n₁ sin(θ₁) = n₂ sin(θ₂)<br />
-            1.0 * sin(30°) = 1.33 * sin(θ₂)<br />
-            0.5 = 1.33 * sin(θ₂)<br />
+            1.0 × sin(30°) = 1.33 × sin(θ₂)<br />
+            0.5 = 1.33 × sin(θ₂)<br />
             sin(θ₂) = 0.5 / 1.33 ≈ 0.3759<br />
             θ₂ = arcsin(0.3759) ≈ 22.08°
           </p>
 
-          <p><strong>Step 2: Fresnel Reflection Coefficient (TE/s-pol)</strong></p>
+          <p className="mt-3"><strong>Step 2: Fresnel Reflection Coefficient (TE/s-pol)</strong></p>
           <p className="pl-4 text-foreground/80">
             r_s = (n₁cosθ₁ - n₂cosθ₂) / (n₁cosθ₁ + n₂cosθ₂)<br />
             cos(30°) ≈ 0.866, cos(22.08°) ≈ 0.926<br />
-            r_s = (1.0 * 0.866 - 1.33 * 0.926) / (1.0 * 0.866 + 1.33 * 0.926)<br />
+            r_s = (1.0 × 0.866 - 1.33 × 0.926) / (1.0 × 0.866 + 1.33 × 0.926)<br />
             r_s = (0.866 - 1.23158) / (0.866 + 1.23158)<br />
             r_s = -0.36558 / 2.09758 ≈ -0.1743
           </p>
 
-          <p><strong>Step 3: Reflectance (R)</strong></p>
+          <p className="mt-3"><strong>Step 3: Reflectance (R)</strong></p>
           <p className="pl-4 text-foreground/80">
             R_s = |r_s|² = (-0.1743)² ≈ 0.03038 or 3.04%
           </p>
 
-          <p><strong>Step 4: Fresnel Transmission Coefficient (TE/s-pol)</strong></p>
+          <p className="mt-3"><strong>Step 4: Fresnel Transmission Coefficient (TE/s-pol)</strong></p>
            <p className="pl-4 text-foreground/80">
             t_s = (2n₁cosθ₁) / (n₁cosθ₁ + n₂cosθ₂)<br />
-            t_s = (2 * 1.0 * 0.866) / (1.0 * 0.866 + 1.33 * 0.926)<br />
+            t_s = (2 × 1.0 × 0.866) / (1.0 × 0.866 + 1.33 × 0.926)<br />
             t_s = 1.732 / 2.09758 ≈ 0.8257
           </p>
 
-          <p><strong>Step 5: Transmittance (T)</strong></p>
+          <p className="mt-3"><strong>Step 5: Transmittance (T)</strong></p>
           <p className="pl-4 text-foreground/80">
             For lossless media and TE polarization:<br />
-            T_s = (n₂ cosθ₂) / (n₁ cosθ₁) * |t_s|² <br />
-            T_s = (1.33 * 0.926) / (1.0 * 0.866) * (0.8257)² <br />
-            T_s = (1.23158 / 0.866) * 0.68178 <br />
-            T_s = 1.42214 * 0.68178 ≈ 0.9696 or 96.96%
+            T_s = (n₂ cosθ₂) / (n₁ cosθ₁) × |t_s|² <br />
+            T_s = (1.33 × 0.926) / (1.0 × 0.866) × (0.8257)² <br />
+            T_s = (1.23158 / 0.866) × 0.68178 <br />
+            T_s = 1.42214 × 0.68178 ≈ 0.9696 or 96.96%
           </p>
-          <p className="pl-4 mt-1 text-sm text-foreground/70">
+          <p className="pl-4 mt-2 text-sm text-foreground/70">
             Alternatively, since media are lossless for this example, T_s = 1 - R_s = 1 - 0.0304 = 0.9696.
           </p>
 
-          <p><strong>Step 6: Absorptance (A)</strong></p>
+          <p className="mt-3"><strong>Step 6: Absorptance (A)</strong></p>
           <p className="pl-4 text-foreground/80">
             Since both air and water are assumed lossless (k=0) in this example:
             A = 1 - R - T = 1 - 0.0304 - 0.9696 = 0
           </p>
-          <p className="mt-2 text-foreground/90">
+          <p className="mt-3 text-foreground/90">
             If any medium (incident, layers, or substrate) had an extinction coefficient k > 0, then light energy would be absorbed,
             and A would be a positive value calculated as A = 1 - R - T after R and T for the entire stack are determined by TMM.
           </p>
@@ -296,5 +296,3 @@ export default function DocumentationPage() {
     </div>
   );
 }
-
-    
