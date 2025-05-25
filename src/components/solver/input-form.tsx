@@ -108,6 +108,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             ...material,
             properties: {
               ...material.properties,
+              // Ensure data is sorted before submission
               data: [...material.properties.data].sort((a, b) => a.wavelength - b.wavelength),
             }
           };
@@ -278,11 +279,11 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={control} name={`materialLibrary.${libIndex}.properties.n`} render={({ field }) => (
                                 <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Gem size={14} />Refractive Index (n)</FormLabel>
-                                <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.52" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.52" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
                                 <FormMessage /></FormItem> )} />
                             <FormField control={control} name={`materialLibrary.${libIndex}.properties.k`} render={({ field }) => (
                                 <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Baseline size={14} />Extinction Coefficient (k)</FormLabel>
-                                <FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                <FormControl><Input type="number" step="0.001" placeholder="e.g., 0.0" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
                                 <FormMessage /></FormItem> )} />
                             </div>
                         )}
@@ -324,11 +325,11 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                             {(value as DispersiveDataPoint[]).map((point, pointIndex) => (
                                                 <div key={`libMat-${libIndex}-point-${pointIndex}`} className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
                                                     <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.wavelength`} render={({ field: dpField }) => (
-                                                        <FormItem><FormLabel className="text-xs">λ (nm)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="Wavelength" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormItem><FormLabel className="text-xs">λ (nm)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="Wavelength" {...dpField} value={typeof dpField.value === 'number' && !isNaN(dpField.value) ? dpField.value : ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.n`} render={({ field: dpField }) => (
-                                                        <FormItem><FormLabel className="text-xs">n</FormLabel><FormControl><Input type="number" step="0.001" placeholder="n" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormItem><FormLabel className="text-xs">n</FormLabel><FormControl><Input type="number" step="0.001" placeholder="n" {...dpField} value={typeof dpField.value === 'number' && !isNaN(dpField.value) ? dpField.value : ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.k`} render={({ field: dpField }) => (
-                                                        <FormItem><FormLabel className="text-xs">k</FormLabel><FormControl><Input type="number" step="0.001" placeholder="k" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormItem><FormLabel className="text-xs">k</FormLabel><FormControl><Input type="number" step="0.001" placeholder="k" {...dpField} value={typeof dpField.value === 'number' && !isNaN(dpField.value) ? dpField.value : ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     <Button type="button" variant="ghost" size="icon" className="mt-4 text-destructive hover:text-destructive/80" onClick={() => removeDispersivePointFromLibraryMaterial(libIndex, pointIndex)} disabled={(watch(`materialLibrary.${libIndex}.properties.data`) || []).length <= DEFAULT_DISPERSIVE_POINTS_COUNT}><Trash2 size={16} /><span className="sr-only">Remove Point</span></Button>
                                                 </div>
                                             ))}
@@ -402,7 +403,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField control={control} name="numLayers" render={({ field }) => (
                   <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Layers size={14} />Number of Internal Layers</FormLabel>
-                  <FormControl><Input type="number" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} min="0" max="20" /></FormControl>
+                  <FormControl><Input type="number" placeholder="e.g., 0" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} min="0" max="20" /></FormControl>
                   <FormDescription>Layers between Incident and Substrate media.</FormDescription><FormMessage /></FormItem> )} />
                <FormField control={control} name="polarization" render={({ field }) => (
                   <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Waves size={14} />Polarization</FormLabel>
@@ -417,16 +418,16 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             {sweepType === 'wavelength' && ( <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={16}/>Wavelength Sweep Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField control={control} name="minWavelength" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 400" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={control} name="maxWavelength" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 700" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={control} name="angleOfIncidence" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="minWavelength" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 400" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="maxWavelength" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 700" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="angleOfIncidence" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><GitCommitHorizontal size={14} />Fixed Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                 </div> </> )}
             {sweepType === 'angle' && ( <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><GitCommitHorizontal size={16}/>Angle Sweep Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField control={control} name="wavelength" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 500" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={control} name="minAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="wavelength" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-1 text-sm"><ScanLine size={14} />Fixed Wavelength (nm)</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 500" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="minAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                 </div> </> )}
 
             {/* --- Layer Details Section --- */}
@@ -440,7 +441,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField control={control} name={`thickness.${index}`} render={({ field }) => (
                           <FormItem><FormLabel className="flex items-center gap-1 text-sm"><Ruler size={14} />Thickness (nm)</FormLabel>
-                          <FormControl><Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                          <FormControl><Input type="number" step="0.1" placeholder={`Layer ${index + 1} thickness`} {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
                           <FormMessage /></FormItem> )} />
 
                       <FormField control={control} name={`layerMaterials.${index}.materialId`} render={({ field }) => (
