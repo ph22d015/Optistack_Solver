@@ -45,7 +45,7 @@ export default function SignupPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen py-12">
-      <Card className="w-full max-w-md shadow-xl">
+      <Card className="w-full max-w-md shadow-xl mb-32 animate-auth-card-enter">
         <CardHeader className="text-center">
           <UserPlus className="mx-auto h-12 w-12 text-primary mb-4" />
           <CardTitle className="text-3xl">Create an Account</CardTitle>
