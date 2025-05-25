@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import type { SolverFormValues, NamedMaterial, DispersiveDataPoint, LayerMaterialProperties } from '@/types/solver';
-import { SolverFormSchema, defaultSolverFormValues, defaultNamedMaterial, defaultLayerMaterialPropertiesConstant, defaultLayerMaterialPropertiesDispersive } from '@/types/solver';
+import { SolverFormSchema, defaultSolverFormValues, defaultLayerMaterialPropertiesConstant, defaultLayerMaterialPropertiesDispersive } from '@/types/solver';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Separator } from '@/components/ui/separator';
 import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, BarChartHorizontalBig, Eye } from 'lucide-react';
 import React, { useEffect, type RefObject, useRef, useState } from 'react';
-import ReCAPTCHA from 'react-google-recaptcha';
+import type ReCAPTCHA from 'react-google-recaptcha';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import MaterialDataChart from './material-data-chart';
@@ -33,7 +33,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur', // Can change to 'onChange' for more immediate feedback or 'onSubmit'
+    mode: 'onBlur', 
   });
   const { toast } = useToast();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -54,7 +54,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     name: 'thickness',
   });
 
-  const { fields: layerMaterialFields, append: appendLayerMaterialSelection, remove: removeLayerMaterialSelection } = useFieldArray({
+  const { fields: layerMaterialSelectionFields, append: appendLayerMaterialSelection, remove: removeLayerMaterialSelection } = useFieldArray({
     control,
     name: 'layerMaterials',
   });
@@ -69,7 +69,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
 
     if (isNaN(parsedNumLayers) || parsedNumLayers < 0 || parsedNumLayers > 20) {
       if (thicknessFields.length > 0) setValue("thickness", [], { shouldValidate: true, shouldDirty: true });
-      if (layerMaterialFields.length > 0) setValue("layerMaterials", [], { shouldValidate: true, shouldDirty: true });
+      if (layerMaterialSelectionFields.length > 0) setValue("layerMaterials", [], { shouldValidate: true, shouldDirty: true });
       return;
     }
 
@@ -84,7 +84,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       }
     }
 
-    const currentLayerMaterialSelectionLength = layerMaterialFields.length;
+    const currentLayerMaterialSelectionLength = layerMaterialSelectionFields.length;
     if (parsedNumLayers > currentLayerMaterialSelectionLength) {
       for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
         const defaultMatIdForNewLayer = materialLibrary && materialLibrary.length > 0 ? materialLibrary[0].id : '';
@@ -95,7 +95,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
         removeLayerMaterialSelection(i);
       }
     }
-  }, [numLayers, appendThickness, removeThickness, appendLayerMaterialSelection, removeLayerMaterialSelection, thicknessFields.length, layerMaterialFields.length, setValue, materialLibrary]);
+  }, [numLayers, appendThickness, removeThickness, appendLayerMaterialSelection, removeLayerMaterialSelection, thicknessFields.length, layerMaterialSelectionFields.length, setValue, materialLibrary]);
 
 
   const handleValidatedFormSubmit = (data: SolverFormValues) => {
@@ -123,7 +123,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
 
     if (newType === 'constant' && currentProperties.type !== 'constant') {
-      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesConstant, materialName: currentMaterialName });
+      setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesConstant, materialName: currentProperties.materialName || currentMaterialName });
     } else if (newType === 'dispersive' && currentProperties.type !== 'dispersive') {
       setValue(`materialLibrary.${libraryMaterialIndex}.properties`, { ...defaultLayerMaterialPropertiesDispersive, materialName: currentProperties.materialName || currentMaterialName });
     }
@@ -133,7 +133,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
     if (currentProperties.type === 'dispersive') {
       const currentData = currentProperties.data || [];
-      const newDataArray = [...currentData, { wavelength: Math.max(...currentData.map(p => p.wavelength), 0) + 50 , n: 1.5, k: 0.0 }];
+      const newDataArray = [...currentData, { wavelength: Math.max(...currentData.map(p => p.wavelength).filter(w => !isNaN(w)), 0) + 50 , n: 1.5, k: 0.0 }];
       setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, newDataArray, {shouldValidate: true, shouldDirty: true});
     }
   };
@@ -220,7 +220,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             <div className="space-y-4 p-4 border rounded-md shadow-sm bg-card/60">
                 <div className="flex justify-between items-center">
                     <h3 className="text-base font-semibold flex items-center gap-2"><Library size={20} /> Material Library</h3>
-                    <Button type="button" size="sm" onClick={() => appendLibraryMaterial({ ...defaultNamedMaterial, id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, name: `Material ${libraryMaterialFields.length + 1}`, properties: {...defaultLayerMaterialPropertiesConstant} })}>
+                    <Button type="button" size="sm" onClick={() => appendLibraryMaterial({ ...defaultSolverFormValues.materialLibrary[0], id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, name: `Material ${libraryMaterialFields.length + 1}` })}>
                         <PlusCircle size={16} className="mr-2" /> Add Material
                     </Button>
                 </div>
@@ -245,7 +245,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                 </FormItem>
                             )}
                             />
-                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 mt-6" onClick={() => removeLibraryMaterial(libIndex)}>
+                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive/80 mt-6" onClick={() => removeLibraryMaterial(libIndex)} disabled={libraryMaterialFields.length <=1}>
                                 <Trash2 size={18} /> <span className="sr-only">Remove Material</span>
                             </Button>
                         </div>
@@ -322,7 +322,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                         render={({ field: { value = [], onChange } }) => (
                                             <>
                                             {(value as DispersiveDataPoint[]).map((point, pointIndex) => (
-                                                <div key={`libMat-${libIndex}-point-${pointIndex}`} className="grid grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
+                                                <div key={`libMat-${libIndex}-point-${pointIndex}`} className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center p-2 border-b last:border-b-0">
                                                     <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.wavelength`} render={({ field: dpField }) => (
                                                         <FormItem><FormLabel className="text-xs">λ (nm)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="Wavelength" {...dpField} value={dpField.value ?? ''} onChange={e => dpField.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     <FormField control={control} name={`materialLibrary.${libIndex}.properties.data.${pointIndex}.n`} render={({ field: dpField }) => (
@@ -434,7 +434,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
               <>
                 <Separator className="my-6" />
                 <h3 className="text-base font-semibold mb-4">Layer Details (Sandwiched between Incident and Substrate Media)</h3>
-                {layerMaterialFields.map((layerField, index) => (
+                {layerMaterialSelectionFields.map((layerField, index) => (
                   <div key={layerField.id} className="p-4 border rounded-md space-y-4 mb-4 shadow-sm bg-card">
                     <h4 className="font-semibold text-sm text-primary">Layer {index + 1}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
