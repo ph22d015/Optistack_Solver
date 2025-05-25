@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Layers3, LogOut, LogIn } from 'lucide-react';
+import { Layers3, LogOut, LogIn, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { auth } from '@/lib/firebase';
@@ -36,6 +36,11 @@ export default function Header() {
     { href: '/contact', label: 'Contact' },
   ];
 
+  const authNavLinks = [
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  ];
+
+
   return (
     <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-y-2">
@@ -58,6 +63,21 @@ export default function Header() {
               {link.label}
             </Link>
           ))}
+           {!loading && user && authNavLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                'transition-colors pb-1 flex items-center gap-1',
+                pathname === link.href
+                  ? 'text-primary font-semibold border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-muted-foreground/50'
+              )}
+            >
+              {link.icon && <link.icon className="h-4 w-4" />}
+              {link.label}
+            </Link>
+          ))}
           {!loading && (
             <>
               {user ? (
@@ -65,11 +85,13 @@ export default function Header() {
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </Button>
               ) : (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/login">
-                    <LogIn className="mr-2 h-4 w-4" /> Login
-                  </Link>
-                </Button>
+                (pathname !== '/login' && pathname !== '/signup') && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/login">
+                      <LogIn className="mr-2 h-4 w-4" /> Login
+                    </Link>
+                  </Button>
+                )
               )}
             </>
           )}
