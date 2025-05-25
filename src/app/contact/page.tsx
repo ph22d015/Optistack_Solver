@@ -85,7 +85,7 @@ export default function ContactPage() {
             <Separator className="my-6" />
             <div>
               <h4 className="text-md font-semibold mb-3">Connect:</h4>
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" asChild>
                   <Link href="https://www.linkedin.com/in/your-linkedin-profile/" target="_blank" rel="noopener noreferrer" aria-label="Sourav Mondal on LinkedIn">
                     <Linkedin className="h-5 w-5 mr-2" /> LinkedIn
