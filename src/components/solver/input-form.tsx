@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import type { SolverFormValues, NamedMaterial, DispersiveDataPoint, LayerMaterialProperties } from '@/types/solver';
-import { SolverFormSchema, defaultSolverFormValues, defaultLayerMaterialPropertiesConstant, defaultLayerMaterialPropertiesDispersive } from '@/types/solver';
+import { SolverFormSchema, defaultSolverFormValues, defaultLayerMaterialPropertiesConstant, defaultLayerMaterialPropertiesDispersive, defaultAirMaterialId } from '@/types/solver';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Separator } from '@/components/ui/separator';
 import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, Eye, Sparkles } from 'lucide-react';
 import React, { useEffect, type RefObject, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import type ReCAPTCHA from 'react-google-recaptcha';
+import ReCAPTCHA from 'react-google-recaptcha'; // Changed from "import type ReCAPTCHA"
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import MaterialDataChart from './material-data-chart';
@@ -32,13 +32,13 @@ export interface InputFormRef {
   resetForm: (values: SolverFormValues) => void;
 }
 
-const DEFAULT_DISPERSIVE_POINTS_COUNT = 2; 
+const DEFAULT_DISPERSIVE_POINTS_COUNT = 2;
 
 const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }, ref) => {
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
-    mode: 'onBlur', 
+    mode: 'onBlur',
   });
   const { toast } = useToast();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -71,7 +71,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
         const currentLayerMaterialSelectionLength = layerMaterialSelectionFields.length;
         if (parsedNumLayers > currentLayerMaterialSelectionLength) {
           for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
-            appendLayerMaterialSelection(values.layerMaterials[i] || { materialId: defaultSolverFormValues.materialLibrary[0].id }, { shouldFocus: false });
+            appendLayerMaterialSelection(values.layerMaterials[i] || { materialId: defaultAirMaterialId }, { shouldFocus: false });
           }
         } else if (parsedNumLayers < currentLayerMaterialSelectionLength) {
           for (let i = currentLayerMaterialSelectionLength - 1; i >= parsedNumLayers; i--) {
@@ -129,7 +129,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
     const currentLayerMaterialSelectionLength = layerMaterialSelectionFields.length;
     if (parsedNumLayers > currentLayerMaterialSelectionLength) {
       for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
-        const defaultMatIdForNewLayer = materialLibrary && materialLibrary.length > 0 ? materialLibrary[0].id : defaultSolverFormValues.materialLibrary[0].id;
+        const defaultMatIdForNewLayer = materialLibrary && materialLibrary.length > 0 ? materialLibrary[0].id : defaultAirMaterialId;
         appendLayerMaterialSelection({ materialId: defaultMatIdForNewLayer }, { shouldFocus: false });
       }
     } else if (parsedNumLayers < currentLayerMaterialSelectionLength) {
@@ -159,7 +159,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
     };
     onSubmit(processedData);
   };
-  
+
   const handleMaterialPropertyTypeChange = (libraryMaterialIndex: number, newType: 'constant' | 'dispersive') => {
     const currentMaterialName = watch(`materialLibrary.${libraryMaterialIndex}.name`);
     const currentProperties = watch(`materialLibrary.${libraryMaterialIndex}.properties`);
@@ -189,7 +189,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
       toast({ title: "Minimum Points", description: `At least ${DEFAULT_DISPERSIVE_POINTS_COUNT} data points are required for manual editing.`, variant: "default"});
     }
   };
-  
+
   const clearAndEditManually = (libraryMaterialIndex: number) => {
     setValue(`materialLibrary.${libraryMaterialIndex}.properties.data`, [...defaultLayerMaterialPropertiesDispersive.data], {shouldValidate: true, shouldDirty: true});
     toast({ title: "Data Cleared", description: "Dispersive data reset to default. You can now edit manually or upload a new file."});
@@ -210,8 +210,8 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
       const lines = text.split(/\r\n|\n/);
       lines.forEach(line => {
         const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) return; 
-        const parts = trimmedLine.split(/[\s,;\t]+/); 
+        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) return;
+        const parts = trimmedLine.split(/[\s,;\t]+/);
         if (parts.length === 3) {
           const wavelength = parseFloat(parts[0]);
           const n = parseFloat(parts[1]);
@@ -233,9 +233,9 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
     };
     reader.onerror = () => toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
     reader.readAsText(file);
-    if(event.target) event.target.value = ''; 
+    if(event.target) event.target.value = '';
   };
-  
+
   const handlePlotData = (libraryMaterialIndex: number) => {
     const material = watch(`materialLibrary.${libraryMaterialIndex}`);
     if (material && material.properties.type === 'dispersive' && material.properties.data) {
@@ -351,7 +351,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
                                   <div className="flex flex-wrap gap-2 items-center mb-2">
                                       <input type="file" accept=".csv,.txt,.dat" style={{ display: 'none' }} ref={el => fileInputRefs.current[libIndex] = el} onChange={(e) => handleFileUploadForLibraryMaterial(e, libIndex)} />
                                       <Button type="button" size="sm" variant="outline" onClick={() => fileInputRefs.current[libIndex]?.click()}><UploadCloud size={14} className="mr-1" /> Upload File</Button>
-                                      
+
                                       {(!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0) && (
                                           <>
                                               <Button type="button" size="sm" variant="outline" onClick={() => handlePlotData(libIndex)}>
@@ -363,7 +363,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
                                           </>
                                       )}
                                   </div>
-                                  
+
                                   {showDispersiveTableInputs && (
                                       <>
                                       <div className="flex justify-between items-center mb-2">
@@ -478,7 +478,7 @@ const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoadin
                       <FormField control={control} name="minAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Min Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 0" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                       <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                   </div> </> )}
-              
+
                <Separator className="my-6" />
                <div className="my-6">
                    <StackVisualizer
