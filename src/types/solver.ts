@@ -35,8 +35,8 @@ export const NamedMaterialSchema = z.object({
 });
 export type NamedMaterial = z.infer<typeof NamedMaterialSchema>;
 
-export const defaultAirMaterialId = 'default-air'; // Added export
-const defaultAirMaterial: NamedMaterial = { id: defaultAirMaterialId, name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } };
+export const defaultAirMaterialId = 'default-air';
+export const defaultAirMaterial: NamedMaterial = { id: defaultAirMaterialId, name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } };
 
 export const SolverFormSchema = z.object({
   sweepType: z.enum(['wavelength', 'angle']).default('wavelength').describe("Parameter to sweep in the calculation."),
@@ -46,14 +46,14 @@ export const SolverFormSchema = z.object({
   
   materialLibrary: z.array(NamedMaterialSchema).min(1, "Material library cannot be empty.").default([defaultAirMaterial]),
 
-  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers").default(1),
-  thickness: z.array(z.coerce.number().min(0, "Thickness must be non-negative nm. Use 0 for no layer, or >0 for actual thickness.")).default([100]),
+  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers").default(0),
+  thickness: z.array(z.coerce.number().min(0, "Thickness must be non-negative nm. Use 0 for no layer, or >0 for actual thickness.")).default([]),
   
   layerMaterials: z.array(
     z.object({
       materialId: z.string().min(1, "Please select a material for this layer.") 
     })
-  ).default([{ materialId: defaultAirMaterialId }]), 
+  ).default([]), 
   
   minWavelength: z.coerce.number().min(1, "Min wavelength must be > 0 nm").default(400),
   maxWavelength: z.coerce.number().min(1, "Max wavelength must be > 0 nm").default(700),
@@ -204,9 +204,9 @@ export const defaultSolverFormValues: SolverFormValues = {
   incidentMediumMaterialId: defaultAirMaterialId,
   substrateMediumMaterialId: defaultAirMaterialId,
   materialLibrary: [defaultAirMaterial],
-  numLayers: 1, 
-  thickness: [100], 
-  layerMaterials: [{ materialId: defaultAirMaterialId }],
+  numLayers: 0, 
+  thickness: [], 
+  layerMaterials: [],
   
   minWavelength: 400,
   maxWavelength: 700,
