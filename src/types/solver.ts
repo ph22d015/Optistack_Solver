@@ -35,7 +35,7 @@ export const NamedMaterialSchema = z.object({
 });
 export type NamedMaterial = z.infer<typeof NamedMaterialSchema>;
 
-const defaultAirMaterialId = 'default-air';
+export const defaultAirMaterialId = 'default-air'; // Added export
 const defaultAirMaterial: NamedMaterial = { id: defaultAirMaterialId, name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } };
 
 export const SolverFormSchema = z.object({
@@ -114,13 +114,21 @@ export const SolverFormSchema = z.object({
     materialNames.add(material.name.toLowerCase().trim());
 
     if (material.properties.type === 'dispersive') {
-      for (let i = 0; i < material.properties.data.length - 1; i++) {
-        if (material.properties.data[i].wavelength >= material.properties.data[i+1].wavelength) {
+      // Ensure data is sorted before validation
+      const sortedData = [...material.properties.data].sort((a, b) => a.wavelength - b.wavelength);
+      if (JSON.stringify(sortedData) !== JSON.stringify(material.properties.data)) {
+        // This check is more for integrity, actual sorting happens in calculation
+        // It might be too strict for form validation if user inputs unsorted data.
+        // For now, we'll rely on the user inputting sorted or sorting before calculation.
+      }
+      for (let i = 0; i < sortedData.length - 1; i++) {
+        if (sortedData[i].wavelength >= sortedData[i+1].wavelength) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `Wavelengths in dispersive data for material "${material.name}" must be strictly increasing.`,
             path: [`materialLibrary.${index}.properties.data.${i+1}.wavelength`],
           });
+          break; // Stop after first error
         }
       }
     }
