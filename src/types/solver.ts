@@ -35,33 +35,25 @@ export const NamedMaterialSchema = z.object({
 });
 export type NamedMaterial = z.infer<typeof NamedMaterialSchema>;
 
-// This schema is used INTERNALLY by the calculation logic for resolved n/k values, not directly in the form for incident/substrate anymore.
-export const ComplexRefractiveIndexSchema = z.object({
-  n: z.coerce.number().min(0, "n must be non-negative").describe("Real part of refractive index"),
-  k: z.coerce.number().min(0, "k must be non-negative").describe("Extinction coefficient (imaginary part)"),
-}).refine(data => data.n >= 1.0 || data.k > 0 || (data.n === 0 && data.k === 0) || (data.n < 1.0 && data.n > 0 && data.k > 0) , {
-    message: "If k is 0 (or very small), n should generally be >= 1.0. For k > 0 (absorbing media/metals), n can be < 1. n=0, k=0 is a special case.",
-    path: ["n"],
-});
+const defaultAirMaterialId = 'default-air';
+const defaultAirMaterial: NamedMaterial = { id: defaultAirMaterialId, name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } };
 
 export const SolverFormSchema = z.object({
   sweepType: z.enum(['wavelength', 'angle']).default('wavelength').describe("Parameter to sweep in the calculation."),
   
-  incidentMediumMaterialId: z.string().min(1, "Incident medium material is required.").describe("Material ID for the incident medium from the library."),
-  substrateMediumMaterialId: z.string().min(1, "Substrate medium material is required.").describe("Material ID for the substrate medium from the library."),
+  incidentMediumMaterialId: z.string().min(1, "Incident medium material is required.").default(defaultAirMaterialId).describe("Material ID for the incident medium from the library."),
+  substrateMediumMaterialId: z.string().min(1, "Substrate medium material is required.").default(defaultAirMaterialId).describe("Material ID for the substrate medium from the library."),
   
-  materialLibrary: z.array(NamedMaterialSchema).min(1, "Material library cannot be empty. At least 'Air' should be present.").default([
-    { id: 'default-air', name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
-  ]),
+  materialLibrary: z.array(NamedMaterialSchema).min(1, "Material library cannot be empty.").default([defaultAirMaterial]),
 
-  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers for demo").default(1),
+  numLayers: z.coerce.number().int().min(0, "Min 0 layers").max(20, "Max 20 layers").default(1),
   thickness: z.array(z.coerce.number().min(0, "Thickness must be non-negative nm. Use 0 for no layer, or >0 for actual thickness.")).default([100]),
   
   layerMaterials: z.array(
     z.object({
       materialId: z.string().min(1, "Please select a material for this layer.") 
     })
-  ).default([{ materialId: 'default-air' }]), 
+  ).default([{ materialId: defaultAirMaterialId }]), 
   
   minWavelength: z.coerce.number().min(1, "Min wavelength must be > 0 nm").default(400),
   maxWavelength: z.coerce.number().min(1, "Max wavelength must be > 0 nm").default(700),
@@ -199,15 +191,11 @@ export const defaultNamedMaterial: NamedMaterial = {
     properties: defaultLayerMaterialPropertiesConstant,
 }
 
-const defaultAirMaterialId = 'default-air';
-
 export const defaultSolverFormValues: SolverFormValues = {
   sweepType: 'wavelength',
   incidentMediumMaterialId: defaultAirMaterialId,
   substrateMediumMaterialId: defaultAirMaterialId,
-  materialLibrary: [
-    { id: defaultAirMaterialId, name: 'Air', properties: { type: 'constant', n: 1.0, k: 0.0, materialName: 'Air' } },
-  ],
+  materialLibrary: [defaultAirMaterial],
   numLayers: 1, 
   thickness: [100], 
   layerMaterials: [{ materialId: defaultAirMaterialId }],
@@ -222,3 +210,12 @@ export const defaultSolverFormValues: SolverFormValues = {
 
   polarization: 'TE',
 };
+
+// For Past Simulations Feature
+export interface SavedSimulationEntry {
+  id: string;
+  name?: string; // Optional user-defined name
+  timestamp: number;
+  formValues: SolverFormValues;
+  results: CalculationResults;
+}

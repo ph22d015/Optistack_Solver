@@ -3,21 +3,25 @@
 
 import React, { useState, useTransition, useRef, useEffect } from 'react';
 import type { RefObject } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import InputForm from '@/components/solver/input-form';
 import ResultsDisplay from '@/components/solver/results-display';
-import type { SolverFormValues, CalculationResults } from '@/types/solver';
+import type { SolverFormValues, CalculationResults, SavedSimulationEntry } from '@/types/solver';
 import { calculateOpticalResponse } from '@/lib/solver-calculations';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import type ReCAPTCHA from 'react-google-recaptcha';
-import { verifyRecaptchaToken } from '@/app/actions'; // Adjusted path
+import { verifyRecaptchaToken } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { saveSimulation as saveSimulationToStorage, getSimulationById } from '@/lib/localStorageUtils';
 
 export default function SolverPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [currentFormValues, setCurrentFormValues] = useState<SolverFormValues | null>(null);
   const [results, setResults] = useState<CalculationResults | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -25,12 +29,33 @@ export default function SolverPage() {
 
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const formRef = useRef<{ resetForm: (values: SolverFormValues) => void }>(null);
+
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    const simulationIdToLoad = searchParams.get('loadSimulationId');
+    if (simulationIdToLoad && formRef.current?.resetForm) {
+      const savedSim = getSimulationById(simulationIdToLoad);
+      if (savedSim) {
+        formRef.current.resetForm(savedSim.formValues);
+        // Optionally set results if you want to show them immediately
+        // setResults(savedSim.results); 
+        // setCurrentFormValues(savedSim.formValues);
+         toast({ title: "Simulation Loaded", description: `Loaded parameters for simulation: ${savedSim.name || savedSim.id}`});
+      } else {
+        toast({ title: "Load Failed", description: `Could not find simulation with ID: ${simulationIdToLoad}`, variant: "destructive"});
+      }
+      // Clean the URL parameter after loading
+      router.replace('/solver', { scroll: false });
+    }
+  }, [searchParams, router, toast]);
+
 
   const handleFormSubmit = async (data: SolverFormValues) => {
     if (!user) {
@@ -39,8 +64,9 @@ export default function SolverPage() {
       return;
     }
 
-    setIsLoading(true); // Set loading state immediately
-    setResults(null); // Clear previous results
+    setCurrentFormValues(data); // Store current form values for potential saving
+    setIsLoading(true);
+    setResults(null);
 
     if (siteKey) {
       const token = recaptchaRef.current?.getValue();
@@ -85,7 +111,7 @@ export default function SolverPage() {
           variant: "destructive",
         });
         setResults({
-            data: [], // Provide empty data on error to clear chart
+            data: [], 
             sweepParameter: data.sweepType,
         });
       } finally {
@@ -94,7 +120,13 @@ export default function SolverPage() {
     });
   };
 
-  if (authLoading || (!user && !authLoading)) { // Show skeleton while loading or if no user and not finished loading
+  const handleSaveSimulation = (formVals: SolverFormValues, calcResults: CalculationResults) => {
+    // Potentially prompt user for a name here, or use a default
+    saveSimulationToStorage(formVals, calcResults);
+  };
+
+
+  if (authLoading || (!user && !authLoading)) {
     return (
       <div className="space-y-8 container mx-auto px-4 py-8">
         <section aria-labelledby="solver-title-skeleton">
@@ -104,15 +136,13 @@ export default function SolverPage() {
           </div>
         </section>
         <Separator />
-        <Skeleton className="h-[600px] w-full rounded-lg" /> {/* Skeleton for InputForm */}
+        <Skeleton className="h-[600px] w-full rounded-lg" />
         <Separator />
-        <Skeleton className="h-[400px] w-full rounded-lg" /> {/* Skeleton for ResultsDisplay */}
+        <Skeleton className="h-[400px] w-full rounded-lg" />
       </div>
     );
   }
   
-  // If explicitly !user and authLoading is false (meaning auth check complete, no user)
-  // useEffect will handle redirect, but can return null or minimal UI to prevent flash
   if (!user) {
       return null; 
   }
@@ -138,11 +168,17 @@ export default function SolverPage() {
         isLoading={isLoading || isPending}
         recaptchaRef={recaptchaRef}
         recaptchaSiteKey={siteKey || ""}
+        ref={formRef} // Pass the ref to InputForm
       />
       
       <Separator className="my-8" />
 
-      <ResultsDisplay results={results} isLoading={isLoading || isPending} />
+      <ResultsDisplay 
+        results={results} 
+        isLoading={isLoading || isPending}
+        formValues={currentFormValues}
+        onSaveSimulation={handleSaveSimulation}
+      />
     </div>
   );
 }

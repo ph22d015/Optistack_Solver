@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, Controller, useImperativeHandle } from 'react-hook-form';
 import type { SolverFormValues, NamedMaterial, DispersiveDataPoint, LayerMaterialProperties } from '@/types/solver';
 import { SolverFormSchema, defaultSolverFormValues, defaultLayerMaterialPropertiesConstant, defaultLayerMaterialPropertiesDispersive } from '@/types/solver';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Layers, Ruler, Gem, GitCommitHorizontal, Waves, Calculator, ScanLine, Baseline, ArrowDownUp, BoxSelect, Repeat, Sigma, PlusCircle, Trash2, Edit3, TableIcon, UploadCloud, Library, FileJson, BookType, Eye, Sparkles } from 'lucide-react';
-import React, { useEffect, type RefObject, useRef, useState } from 'react';
+import React, { useEffect, type RefObject, useRef, useState, forwardRef } from 'react';
 import type ReCAPTCHA from 'react-google-recaptcha';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -28,9 +28,13 @@ interface InputFormProps {
   recaptchaSiteKey: string;
 }
 
+export interface InputFormRef {
+  resetForm: (values: SolverFormValues) => void;
+}
+
 const DEFAULT_DISPERSIVE_POINTS_COUNT = 2; 
 
-export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }: InputFormProps) {
+const InputForm = forwardRef<InputFormRef, InputFormProps>(({ onSubmit, isLoading, recaptchaRef, recaptchaSiteKey }, ref) => {
   const form = useForm<SolverFormValues>({
     resolver: zodResolver(SolverFormSchema),
     defaultValues: defaultSolverFormValues,
@@ -44,7 +48,39 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
   const [plottingMaterialName, setPlottingMaterialName] = useState<string | null>(null);
 
 
-  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting, errors } } = form;
+  const { control, watch, setValue, handleSubmit: formHandleSubmit, formState: { isSubmitting, errors }, reset } = form;
+
+  useImperativeHandle(ref, () => ({
+    resetForm: (values: SolverFormValues) => {
+      reset(values);
+      // Force re-evaluation of dependent arrays if numLayers changes during reset
+      const parsedNumLayers = parseInt(String(values.numLayers), 10);
+      if (!isNaN(parsedNumLayers)) {
+         // Trigger effect for thickness
+        const currentThicknessLength = thicknessFields.length;
+        if (parsedNumLayers > currentThicknessLength) {
+          for (let i = currentThicknessLength; i < parsedNumLayers; i++) {
+            appendThickness(values.thickness[i] || 100, { shouldFocus: false });
+          }
+        } else if (parsedNumLayers < currentThicknessLength) {
+          for (let i = currentThicknessLength - 1; i >= parsedNumLayers; i--) {
+            removeThickness(i);
+          }
+        }
+         // Trigger effect for layer materials
+        const currentLayerMaterialSelectionLength = layerMaterialSelectionFields.length;
+        if (parsedNumLayers > currentLayerMaterialSelectionLength) {
+          for (let i = currentLayerMaterialSelectionLength; i < parsedNumLayers; i++) {
+            appendLayerMaterialSelection(values.layerMaterials[i] || { materialId: defaultSolverFormValues.materialLibrary[0].id }, { shouldFocus: false });
+          }
+        } else if (parsedNumLayers < currentLayerMaterialSelectionLength) {
+          for (let i = currentLayerMaterialSelectionLength - 1; i >= parsedNumLayers; i--) {
+            removeLayerMaterialSelection(i);
+          }
+        }
+      }
+    }
+  }));
 
   const numLayers = watch('numLayers');
   const sweepType = watch('sweepType');
@@ -114,7 +150,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             ...material,
             properties: {
               ...material.properties,
-              // Ensure data is sorted before submission
               data: [...material.properties.data].sort((a, b) => a.wavelength - b.wavelength),
             }
           };
@@ -212,7 +247,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     }
   };
 
-  // Prepare data for StackVisualizer
   const incidentMat = materialLibrary.find(m => m.id === incidentMediumMaterialId);
   const substrateMat = materialLibrary.find(m => m.id === substrateMediumMaterialId);
   const internalLayersForVisualizer = Array.from({ length: numLayers }, (_, i) => {
@@ -236,7 +270,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleValidatedFormSubmit)} className="space-y-8">
 
-            {/* --- Material Library Section --- */}
             <div className="space-y-4 p-4 border rounded-md shadow-sm bg-card/60">
                 <div className="flex justify-between items-center">
                     <h3 className="text-base font-semibold flex items-center gap-2"><Library size={20} /> Material Library</h3>
@@ -318,7 +351,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                     <input type="file" accept=".csv,.txt,.dat" style={{ display: 'none' }} ref={el => fileInputRefs.current[libIndex] = el} onChange={(e) => handleFileUploadForLibraryMaterial(e, libIndex)} />
                                     <Button type="button" size="sm" variant="outline" onClick={() => fileInputRefs.current[libIndex]?.click()}><UploadCloud size={14} className="mr-1" /> Upload File</Button>
                                     
-                                    {!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0 && (
+                                    {(!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0) && (
                                         <>
                                             <Button type="button" size="sm" variant="outline" onClick={() => handlePlotData(libIndex)}>
                                                 <Eye size={14} className="mr-1" /> Plot Data
@@ -359,7 +392,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                                     />
                                     </>
                                 )}
-                                {!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0 && (
+                                {(!showDispersiveTableInputs && dispersiveDataPoints && dispersiveDataPoints.length > 0) && (
                                     <p className="text-sm text-muted-foreground pl-1">{dispersiveDataPoints.length} data points loaded.</p>
                                 )}
                             </div>
@@ -373,7 +406,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             </div>
             <Separator/>
 
-            {/* --- Sweep Type Section --- */}
             <FormField control={control} name="sweepType" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-base font-semibold flex items-center gap-1"><Repeat size={16} />Calculation Sweep Type</FormLabel>
@@ -389,7 +421,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                 </FormItem> )} />
             <Separator/>
 
-            {/* --- Surrounding Media Section --- */}
             <h3 className="text-base font-semibold flex items-center gap-2"><ArrowDownUp size={16}/>Surrounding Media</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md shadow-sm bg-card/50">
                 <FormField control={control} name="incidentMediumMaterialId" render={({ field }) => (
@@ -417,7 +448,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             </div>
             <Separator />
 
-            {/* --- Stack & Common Optical Properties --- */}
             <h3 className="text-base font-semibold flex items-center gap-2"><BoxSelect size={16}/>Stack & Common Optical Properties</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField control={control} name="numLayers" render={({ field }) => (
@@ -433,7 +463,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
             </div>
             <Separator />
 
-            {/* --- Sweep Specific Parameters --- */}
             {sweepType === 'wavelength' && ( <>
                 <h3 className="text-base font-semibold flex items-center gap-2"><ScanLine size={16}/>Wavelength Sweep Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -449,8 +478,7 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
                     <FormField control={control} name="maxAngle" render={({ field }) => ( <FormItem><FormLabel className="text-sm">Max Angle of Incidence (°)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 89.9" {...field} value={typeof field.value === 'number' && !isNaN(field.value) ? field.value : ''} onChange={e => field.onChange(parseFloat(e.target.value))}/></FormControl><FormMessage /></FormItem> )} />
                 </div> </> )}
             
-            {/* --- Stack Visualizer --- */}
-            <Separator className="my-6" />
+             <Separator className="my-6" />
              <div className="my-6">
                  <StackVisualizer
                     incidentMaterialName={incidentMat?.name}
@@ -460,7 +488,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
              </div>
 
 
-            {/* --- Layer Details Section --- */}
             {(numLayers > 0 && !isNaN(numLayers) && numLayers <= 20) && (
               <>
                 <Separator className="my-6" />
@@ -508,7 +535,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
       </CardContent>
     </Card>
 
-    {/* Material Data Plot Dialog */}
     <Dialog open={isMaterialPlotDialogOpen} onOpenChange={setIsMaterialPlotDialogOpen}>
         <DialogContent className="sm:max-w-[70vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -531,4 +557,6 @@ export default function InputForm({ onSubmit, isLoading, recaptchaRef, recaptcha
     </Dialog>
     </>
   );
-}
+});
+InputForm.displayName = "InputForm";
+export default InputForm;

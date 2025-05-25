@@ -1,20 +1,22 @@
 
 'use client';
 
-import type { CalculationResults } from '@/types/solver';
+import type { CalculationResults, SolverFormValues } from '@/types/solver';
 import OpticalChart from './optical-chart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download } from 'lucide-react';
+import { Download, Save } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 
 interface ResultsDisplayProps {
+  formValues: SolverFormValues | null; // Pass current form values for saving
   results: CalculationResults | null;
   isLoading: boolean;
+  onSaveSimulation: (formValues: SolverFormValues, results: CalculationResults) => void; // Callback to save
 }
 
-export default function ResultsDisplay({ results, isLoading }: ResultsDisplayProps) {
+export default function ResultsDisplay({ results, isLoading, formValues, onSaveSimulation }: ResultsDisplayProps) {
   const { toast } = useToast();
   const opticalData = results?.data;
   const sweepParameter = results?.sweepParameter ?? 'wavelength'; 
@@ -72,24 +74,53 @@ export default function ResultsDisplay({ results, isLoading }: ResultsDisplayPro
     }
   };
 
+  const handleSave = () => {
+    if (formValues && results) {
+      onSaveSimulation(formValues, results);
+      toast({
+        title: "Simulation Saved",
+        description: "This simulation has been saved to your dashboard.",
+      });
+    } else {
+      toast({
+        title: "Cannot Save",
+        description: "No simulation data or parameters to save.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="mb-2">Results</CardTitle>
           <CardDescription>Calculated optical response.</CardDescription>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDownloadCsv}
-          disabled={isLoading || !opticalData || opticalData.length === 0}
-          aria-label="Download simulation data as CSV"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Download Data (CSV)
-        </Button>
+        <div className="flex items-center gap-2">
+          {results && results.data && results.data.length > 0 && formValues && (
+             <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSave}
+              disabled={isLoading}
+              aria-label="Save this simulation"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Simulation
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadCsv}
+            disabled={isLoading || !opticalData || opticalData.length === 0}
+            aria-label="Download simulation data as CSV"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download Data (CSV)
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {isLoading && (
@@ -99,9 +130,9 @@ export default function ResultsDisplay({ results, isLoading }: ResultsDisplayPro
           </div>
         )}
 
-        {!isLoading && opticalData && <OpticalChart data={opticalData} sweepParameter={sweepParameter} />}
+        {!isLoading && opticalData && opticalData.length > 0 && <OpticalChart data={opticalData} sweepParameter={sweepParameter} />}
         
-        {!isLoading && !opticalData && ( 
+        {!isLoading && (!opticalData || opticalData.length === 0) && ( 
           <p className="text-muted-foreground text-center py-10">
             Enter parameters and click "Calculate" to see results.
           </p>
