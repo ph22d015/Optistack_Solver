@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Layers3, LogOut, LogIn, LayoutDashboard } from 'lucide-react';
+import { Layers3, LogOut, LogIn, LayoutDashboard, BotMessageSquare } from 'lucide-react'; // Added BotMessageSquare for RCWA
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { auth } from '@/lib/firebase';
@@ -30,6 +30,8 @@ export default function Header() {
 
   const navLinks = [
     { href: '/', label: 'Home' },
+    { href: '/solver', label: 'TMM Solver' }, // Renamed for clarity
+    { href: '/rcwa-solver', label: 'RCWA Solver', icon: BotMessageSquare }, // New RCWA link
     { href: '/documentation', label: 'Documentation' },
     { href: '/help', label: 'Help' },
     { href: '/about', label: 'About' },
@@ -48,18 +50,19 @@ export default function Header() {
           <Layers3 size={28} />
           <h1 className="text-2xl font-semibold">OptiStack Solver</h1>
         </Link>
-        <nav className="flex items-center flex-wrap gap-x-4 gap-y-2 sm:gap-x-6 text-base font-medium">
+        <nav className="flex items-center flex-wrap gap-x-4 gap-y-2 text-base font-medium">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
-                'transition-colors pb-1',
+                'transition-colors pb-1 flex items-center gap-1',
                 pathname === link.href
                   ? 'text-primary font-semibold border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-muted-foreground/50'
               )}
             >
+              {link.icon && <link.icon className="h-4 w-4" />}
               {link.label}
             </Link>
           ))}
